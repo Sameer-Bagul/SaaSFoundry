@@ -2,17 +2,13 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { CustomInput, CustomButton, CustomCheckbox, CustomForm } from "@/components/custom-form";
 
 type LoginData = {
   username: string;
@@ -114,22 +110,22 @@ export default function AuthPage() {
             <CardContent className="space-y-6">
               {/* Social Auth Buttons */}
               <div className="space-y-3">
-                <Button 
+                <CustomButton 
                   variant="outline" 
                   className="w-full" 
                   data-testid="button-google-auth"
                 >
                   <span className="material-symbols-outlined mr-2">google</span>
                   Continue with Google
-                </Button>
-                <Button 
+                </CustomButton>
+                <CustomButton 
                   variant="outline" 
                   className="w-full"
                   data-testid="button-apple-auth"
                 >
                   <span className="material-symbols-outlined mr-2">apple</span>
                   Continue with Apple
-                </Button>
+                </CustomButton>
               </div>
 
               <div className="relative">
@@ -145,210 +141,124 @@ export default function AuthPage() {
 
               {/* Login Form */}
               {isLogin ? (
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
-                    <FormField
-                      control={loginForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              placeholder="Enter your username" 
-                              data-testid="input-username"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                <CustomForm onSubmit={loginForm.handleSubmit(handleLogin)}>
+                  <CustomInput
+                    label="Username"
+                    placeholder="Enter your username"
+                    data-testid="input-username"
+                    error={loginForm.formState.errors.username?.message}
+                    {...loginForm.register("username")}
+                  />
+                  <CustomInput
+                    label="Password"
+                    type="password"
+                    placeholder="Enter your password"
+                    data-testid="input-password"
+                    error={loginForm.formState.errors.password?.message}
+                    {...loginForm.register("password")}
+                  />
+                  <div className="flex items-center justify-between">
+                    <CustomCheckbox 
+                      id="remember" 
+                      label="Remember me"
                     />
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="password" 
-                              placeholder="Enter your password" 
-                              data-testid="input-password"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="remember" />
-                        <Label htmlFor="remember" className="text-sm text-muted-foreground">
-                          Remember me
-                        </Label>
-                      </div>
-                      <Button variant="link" className="p-0 h-auto text-sm">
-                        Forgot password?
-                      </Button>
-                    </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={loginMutation.isPending}
-                      data-testid="button-sign-in"
-                    >
-                      {loginMutation.isPending ? "Signing in..." : "Sign In"}
-                    </Button>
-                  </form>
-                </Form>
+                    <CustomButton variant="ghost" size="sm">
+                      Forgot password?
+                    </CustomButton>
+                  </div>
+                  <CustomButton 
+                    type="submit" 
+                    className="w-full" 
+                    loading={loginMutation.isPending}
+                    data-testid="button-sign-in"
+                  >
+                    {loginMutation.isPending ? "Signing in..." : "Sign In"}
+                  </CustomButton>
+                </CustomForm>
               ) : (
                 /* Register Form */
-                <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={registerForm.control}
-                        name="firstName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>First Name</FormLabel>
-                            <FormControl>
-                              <Input 
-                                {...field} 
-                                placeholder="John" 
-                                data-testid="input-first-name"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={registerForm.control}
-                        name="lastName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Last Name</FormLabel>
-                            <FormControl>
-                              <Input 
-                                {...field} 
-                                placeholder="Doe" 
-                                data-testid="input-last-name"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      control={registerForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              placeholder="Choose a username" 
-                              data-testid="input-register-username"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                <CustomForm onSubmit={registerForm.handleSubmit(handleRegister)}>
+                  <div className="grid grid-cols-2 gap-4">
+                    <CustomInput
+                      label="First Name"
+                      placeholder="John"
+                      data-testid="input-first-name"
+                      error={registerForm.formState.errors.firstName?.message}
+                      {...registerForm.register("firstName")}
                     />
-                    <FormField
-                      control={registerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="email" 
-                              placeholder="john@example.com" 
-                              data-testid="input-email"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                    <CustomInput
+                      label="Last Name"
+                      placeholder="Doe"
+                      data-testid="input-last-name"
+                      error={registerForm.formState.errors.lastName?.message}
+                      {...registerForm.register("lastName")}
                     />
-                    <FormField
-                      control={registerForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="password" 
-                              placeholder="Create a password" 
-                              data-testid="input-register-password"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Confirm Password</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="password" 
-                              placeholder="Confirm your password" 
-                              data-testid="input-confirm-password"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={registerMutation.isPending}
-                      data-testid="button-register"
-                    >
-                      {registerMutation.isPending ? "Creating account..." : "Create Account"}
-                    </Button>
-                  </form>
-                </Form>
+                  </div>
+                  <CustomInput
+                    label="Username"
+                    placeholder="Choose a username"
+                    data-testid="input-register-username"
+                    error={registerForm.formState.errors.username?.message}
+                    {...registerForm.register("username")}
+                  />
+                  <CustomInput
+                    label="Email"
+                    type="email"
+                    placeholder="john@example.com"
+                    data-testid="input-email"
+                    error={registerForm.formState.errors.email?.message}
+                    {...registerForm.register("email")}
+                  />
+                  <CustomInput
+                    label="Password"
+                    type="password"
+                    placeholder="Create a password"
+                    data-testid="input-register-password"
+                    error={registerForm.formState.errors.password?.message}
+                    {...registerForm.register("password")}
+                  />
+                  <CustomInput
+                    label="Confirm Password"
+                    type="password"
+                    placeholder="Confirm your password"
+                    data-testid="input-confirm-password"
+                    error={registerForm.formState.errors.confirmPassword?.message}
+                    {...registerForm.register("confirmPassword")}
+                  />
+                  <CustomButton 
+                    type="submit" 
+                    className="w-full" 
+                    loading={registerMutation.isPending}
+                    data-testid="button-register"
+                  >
+                    {registerMutation.isPending ? "Creating account..." : "Create Account"}
+                  </CustomButton>
+                </CustomForm>
               )}
 
               {/* Mobile Auth Option */}
               <Separator />
-              <Button 
+              <CustomButton 
                 variant="outline" 
                 className="w-full"
                 data-testid="button-phone-auth"
               >
                 <span className="material-symbols-outlined mr-2">phone</span>
                 Sign in with Phone Number
-              </Button>
+              </CustomButton>
 
               {/* Toggle between login/register */}
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">
                   {isLogin ? "Don't have an account? " : "Already have an account? "}
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto text-sm"
+                  <CustomButton
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setIsLogin(!isLogin)}
                     data-testid="button-toggle-auth"
                   >
                     {isLogin ? "Sign up for free" : "Sign in"}
-                  </Button>
+                  </CustomButton>
                 </p>
               </div>
             </CardContent>
