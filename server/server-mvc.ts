@@ -15,6 +15,7 @@ import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import transactionRoutes from './routes/transactionRoutes';
 import supportRoutes from './routes/supportRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 
 // Create Express app
 const app = express();
@@ -118,6 +119,7 @@ app.use('/api', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
