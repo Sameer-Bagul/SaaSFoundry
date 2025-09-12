@@ -146,4 +146,54 @@
       opacity: .5;
     }
   }
+
+  /* Responsive utilities for mobile-first design */
+  .responsive-grid {
+    @apply grid grid-cols-1 gap-4;
+  }
+  
+  .responsive-grid-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+  }
+  
+  .responsive-grid-3 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+  
+  .responsive-grid-4 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
+  }
+  
+  .responsive-padding {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+  
+  .responsive-text {
+    @apply text-sm sm:text-base;
+  }
+  
+  .responsive-heading {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+
+  /* Mobile-first responsive breakpoints */
+  @media (max-width: 640px) {
+    .mobile-full {
+      @apply w-full;
+    }
+    
+    .mobile-hide {
+      @apply hidden;
+    }
+    
+    .mobile-show {
+      @apply block;
+    }
+  }
+
+  @media (min-width: 641px) {
+    .mobile-show {
+      @apply hidden;
+    }
+  }
 }

@@ -86,7 +86,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-muted-foreground text-sm">Total Credits</p>
                     <p className="text-2xl font-bold" data-testid="stat-total-credits">
-                      {stats?.totalCredits?.toLocaleString() || 0}
+                      {(stats as any)?.totalCredits?.toLocaleString() || '0'}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -106,7 +106,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-muted-foreground text-sm">Credits Used</p>
                     <p className="text-2xl font-bold" data-testid="stat-credits-used">
-                      {stats?.creditsUsed?.toLocaleString() || 0}
+                      {(stats as any)?.creditsUsed?.toLocaleString() || '0'}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-chart-2/10 rounded-lg flex items-center justify-center">
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-muted-foreground text-sm">API Calls</p>
                     <p className="text-2xl font-bold" data-testid="stat-api-calls">
-                      {stats?.apiCalls?.toLocaleString() || 0}
+                      {(stats as any)?.apiCalls?.toLocaleString() || '0'}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-chart-3/10 rounded-lg flex items-center justify-center">
@@ -146,7 +146,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-muted-foreground text-sm">Success Rate</p>
                     <p className="text-2xl font-bold" data-testid="stat-success-rate">
-                      {stats?.successRate || '100.0'}%
+                      {(stats as any)?.successRate || '100.0'}%
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
@@ -185,8 +185,8 @@ export default function DashboardPage() {
                           </div>
                         ))}
                       </div>
-                    ) : activity && activity.length > 0 ? (
-                      activity.map((item: any, index: number) => (
+                    ) : (activity as any)?.length > 0 ? (
+                      (activity as any[]).map((item: any, index: number) => (
                         <div key={index} className="flex items-center space-x-4 p-3 hover:bg-accent rounded-lg transition-colors">
                           <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                             <span className="material-symbols-outlined text-primary">{item.icon}</span>
@@ -243,13 +243,13 @@ export default function DashboardPage() {
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Credits Used</span>
-                        <span>{stats?.creditsUsed || 0} / {stats?.totalCredits || 0}</span>
+                        <span>{(stats as any)?.creditsUsed || 0} / {(stats as any)?.totalCredits || 0}</span>
                       </div>
                       <div className="w-full bg-secondary rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full" 
                           style={{ 
-                            width: `${stats?.totalCredits ? Math.min((stats.creditsUsed / stats.totalCredits) * 100, 100) : 0}%` 
+                            width: `${(stats as any)?.totalCredits ? Math.min(((stats as any).creditsUsed / (stats as any).totalCredits) * 100, 100) : 0}%` 
                           }}
                         ></div>
                       </div>
@@ -257,13 +257,13 @@ export default function DashboardPage() {
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>API Calls</span>
-                        <span>{stats?.apiCalls || 0} / 25,000</span>
+                        <span>{(stats as any)?.apiCalls || 0} / 25,000</span>
                       </div>
                       <div className="w-full bg-secondary rounded-full h-2">
                         <div 
                           className="bg-chart-2 h-2 rounded-full" 
                           style={{ 
-                            width: `${Math.min(((stats?.apiCalls || 0) / 25000) * 100, 100)}%` 
+                            width: `${Math.min((((stats as any)?.apiCalls || 0) / 25000) * 100, 100)}%` 
                           }}
                         ></div>
                       </div>
