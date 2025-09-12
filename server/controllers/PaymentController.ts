@@ -3,12 +3,12 @@ import Transaction, { ITransaction } from '../models/Transaction';
 import User, { IUser } from '../models/User';
 import RazorpayService from '../services/RazorpayService';
 
-// Credit packages available for purchase
+// Credit packages available for purchase (aligned with frontend)
 export const CREDIT_PACKAGES = {
-  starter: { credits: 100, basePrice: 9.99, name: 'Starter Pack' },
-  pro: { credits: 500, basePrice: 39.99, name: 'Pro Pack' },
-  enterprise: { credits: 2000, basePrice: 149.99, name: 'Enterprise Pack' },
-  unlimited: { credits: 10000, basePrice: 499.99, name: 'Unlimited Pack' }
+  starter: { credits: 1000, basePrice: 9.99, name: 'Starter Pack' },
+  professional: { credits: 5000, basePrice: 39.99, name: 'Professional' },
+  enterprise: { credits: 15000, basePrice: 99.99, name: 'Enterprise' },
+  unlimited: { credits: 50000, basePrice: 299.99, name: 'Unlimited' }
 };
 
 export class PaymentController {
@@ -117,8 +117,8 @@ export class PaymentController {
       await transaction.save();
 
       res.status(201).json({
-        orderId: razorpayOrder.id,
-        amount: finalPrice,
+        id: razorpayOrder.id,
+        amount: Math.round(finalPrice * 100), // Amount in smallest currency unit for Razorpay
         currency,
         transactionId,
         package: {
@@ -196,8 +196,24 @@ export class PaymentController {
   // Handle Razorpay webhook (for automatic payment updates)
   static async handleWebhook(req: Request, res: Response) {
     try {
-      const { event, payload } = req.body;
+      // Verify webhook signature for security
+      const webhookSignature = req.headers['x-razorpay-signature'] as string;
+      const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+      
+      if (webhookSecret && webhookSignature) {
+        const crypto = require('crypto');
+        const expectedSignature = crypto
+          .createHmac('sha256', webhookSecret)
+          .update(JSON.stringify(req.body))
+          .digest('hex');
+          
+        if (expectedSignature !== webhookSignature) {
+          console.error('❌ Invalid webhook signature');
+          return res.status(400).json({ error: 'Invalid signature' });
+        }
+      }
 
+      const { event, payload } = req.body;
       console.log(`📥 Razorpay webhook received: ${event}`);
 
       switch (event) {

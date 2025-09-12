@@ -59,7 +59,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      setLocation("/dashboard");
+      setLocation("/app");
     }
   }, [user, isLoading, setLocation]);
 
@@ -69,14 +69,14 @@ export default function AuthPage() {
 
   const handleLogin = (data: LoginData) => {
     loginMutation.mutate(data, {
-      onSuccess: () => setLocation("/dashboard"),
+      onSuccess: () => setLocation("/app"),
     });
   };
 
   const handleRegister = (data: z.infer<typeof registerSchema>) => {
     const { confirmPassword, ...registerData } = data;
     registerMutation.mutate(registerData, {
-      onSuccess: () => setLocation("/dashboard"),
+      onSuccess: () => setLocation("/app"),
     });
   };
 
@@ -86,8 +86,11 @@ export default function AuthPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="font-heading font-bold text-2xl mb-2">
-              <span className="text-primary">AI</span>SAAS
+            <div className="font-heading font-bold text-3xl mb-2">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="material-symbols-outlined text-white text-3xl">psychology</span>
+              </div>
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">SaaS</span><span className="text-foreground">Hub</span>
             </div>
             <h2 className="font-heading text-3xl font-bold">
               {isLogin ? "Welcome Back" : "Create Account"}

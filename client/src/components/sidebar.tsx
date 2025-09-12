@@ -10,8 +10,9 @@ interface SidebarProps {
 }
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: "dashboard" },
-  { name: "Buy Credits", href: "/credits", icon: "account_balance_wallet" },
+  { name: "Dashboard", href: "/app", icon: "dashboard" },
+  { name: "Buy Credits", href: "/buy-credits", icon: "account_balance_wallet" },
+  { name: "Credits", href: "/credits", icon: "toll" },
   { name: "Profile", href: "/profile", icon: "person" },
   { name: "Payment History", href: "/payments", icon: "receipt_long" },
   { name: "Settings", href: "/settings", icon: "settings" },
@@ -38,7 +39,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex-1 mt-6 px-3">
         <div className="space-y-1">
           {navigation.map((item) => {
-            const isActive = location === item.href || (item.href === "/dashboard" && location === "/");
+            const isActive = location === item.href || (item.href === "/app" && location === "/");
             return (
               <Link key={item.name} href={item.href}>
                 <Button

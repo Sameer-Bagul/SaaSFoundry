@@ -20,6 +20,9 @@ import paymentRoutes from './routes/paymentRoutes';
 // Create Express app
 const app = express();
 
+// Trust proxy for Replit environment (important for session cookies)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -31,7 +34,9 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: config.isProduction,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax', // Important for cross-origin requests in development
+    httpOnly: true // Security: prevent XSS attacks
   }
 }));
 
