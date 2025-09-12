@@ -64,6 +64,7 @@ export default function BuyCreditsPage() {
 
   // Auto-detect billing country based on location (simplified)
   const [billingCountry, setBillingCountry] = useState<string>('US');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   useState(() => {
     // In a real app, you might use a geolocation API or user preferences
@@ -135,9 +136,10 @@ export default function BuyCreditsPage() {
             // Invalidate user query to refresh credits
             queryClient.invalidateQueries({ queryKey: ["/api/user"] });
             
+            const selectedPackage = creditPackages.find(p => p.id === packageId);
             toast({
               title: "Payment Successful! 🎉",
-              description: `${selectedPackage.credits} credits have been added to your account.`,
+              description: `${selectedPackage?.credits || 'Your'} credits have been added to your account.`,
               variant: "default",
             });
             
@@ -193,7 +195,7 @@ export default function BuyCreditsPage() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="flex">
-        <Sidebar />
+        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
         <main className="flex-1 p-6 lg:p-8">
           <div className="max-w-6xl mx-auto space-y-6">
             {/* Header */}
