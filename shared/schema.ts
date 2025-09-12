@@ -72,6 +72,15 @@ export const apiUsage = pgTable("api_usage", {
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  role: text("role").notNull(), // 'user' or 'assistant'
+  content: text("content").notNull(),
+  creditsUsed: integer("credits_used").default(0).notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -105,6 +114,11 @@ export const insertApiUsageSchema = createInsertSchema(apiUsage).omit({
   createdAt: true,
 });
 
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -116,3 +130,5 @@ export type SupportTicket = typeof supportTickets.$inferSelect;
 export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
 export type ApiUsage = typeof apiUsage.$inferSelect;
 export type InsertApiUsage = z.infer<typeof insertApiUsageSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;

@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Transaction, type InsertTransaction, type UserSettings, type InsertUserSettings, type SupportTicket, type InsertSupportTicket, type ApiUsage, type InsertApiUsage } from "@shared/schema";
+import { type User, type InsertUser, type Transaction, type InsertTransaction, type UserSettings, type InsertUserSettings, type SupportTicket, type InsertSupportTicket, type ApiUsage, type InsertApiUsage, type ChatMessage, type InsertChatMessage } from "@shared/schema";
 import { randomUUID, randomBytes } from "crypto";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -33,6 +33,10 @@ export interface IStorage {
   createApiUsage(usage: InsertApiUsage): Promise<ApiUsage>;
   getApiUsage(userId: string, startDate?: Date, endDate?: Date): Promise<ApiUsage[]>;
   
+  // Chat message methods
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  getChatMessages(userId: string, limit?: number): Promise<ChatMessage[]>;
+  
   sessionStore: any;
 }
 
@@ -42,6 +46,7 @@ export class MemStorage implements IStorage {
   private userSettings: Map<string, UserSettings>;
   private supportTickets: Map<string, SupportTicket>;
   private apiUsage: Map<string, ApiUsage>;
+  private chatMessages: Map<string, ChatMessage>;
   sessionStore: any;
 
   constructor() {
@@ -50,6 +55,7 @@ export class MemStorage implements IStorage {
     this.userSettings = new Map();
     this.supportTickets = new Map();
     this.apiUsage = new Map();
+    this.chatMessages = new Map();
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -82,6 +88,11 @@ export class MemStorage implements IStorage {
       apiKey,
       credits: 0,
       isEmailVerified: false,
+      firstName: insertUser.firstName || null,
+      lastName: insertUser.lastName || null,
+      phone: insertUser.phone || null,
+      company: insertUser.company || null,
+      avatar: insertUser.avatar || null,
       createdAt: now,
       updatedAt: now,
     };
@@ -133,6 +144,9 @@ export class MemStorage implements IStorage {
     const transaction: Transaction = {
       ...insertTransaction,
       id,
+      paymentMethod: insertTransaction.paymentMethod || null,
+      razorpayOrderId: insertTransaction.razorpayOrderId || null,
+      razorpayPaymentId: insertTransaction.razorpayPaymentId || null,
       createdAt: now,
       updatedAt: now,
     };
@@ -158,8 +172,16 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const now = new Date();
     const settings: UserSettings = {
-      ...insertSettings,
       id,
+      userId: insertSettings.userId,
+      theme: insertSettings.theme || "system",
+      language: insertSettings.language || "en",
+      emailNotifications: insertSettings.emailNotifications ?? true,
+      pushNotifications: insertSettings.pushNotifications ?? false,
+      creditAlerts: insertSettings.creditAlerts ?? true,
+      dataAnalytics: insertSettings.dataAnalytics ?? true,
+      marketingCommunications: insertSettings.marketingCommunications ?? false,
+      rateLimit: insertSettings.rateLimit || 100,
       createdAt: now,
       updatedAt: now,
     };
@@ -221,6 +243,28 @@ export class MemStorage implements IStorage {
     }
 
     return usage.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  // Chat message methods
+  async createChatMessage(insertMessage: InsertChatMessage): Promise<ChatMessage> {
+    const id = randomUUID();
+    const message: ChatMessage = {
+      id,
+      userId: insertMessage.userId,
+      role: insertMessage.role,
+      content: insertMessage.content,
+      creditsUsed: insertMessage.creditsUsed || 0,
+      createdAt: new Date(),
+    };
+    this.chatMessages.set(id, message);
+    return message;
+  }
+
+  async getChatMessages(userId: string, limit: number = 50): Promise<ChatMessage[]> {
+    return Array.from(this.chatMessages.values())
+      .filter(message => message.userId === userId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      .slice(-limit); // Get the latest messages
   }
 }
 

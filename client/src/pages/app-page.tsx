@@ -1,29 +1,83 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/navbar";
 import Sidebar from "@/components/sidebar";
 
 export default function AppPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: 'Hello! I\'m your AI assistant. How can I help you today?',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<any[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+
+  // Load chat history
+  const { data: chatHistory, isLoading: historyLoading } = useQuery({
+    queryKey: ["/api/chat/history"],
+  });
+
+  // Initialize messages with history + welcome message
+  useEffect(() => {
+    if (chatHistory && chatHistory.length > 0) {
+      setMessages(chatHistory.map((msg: any) => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date(msg.createdAt),
+        creditsUsed: msg.creditsUsed
+      })));
+    } else {
+      setMessages([
+        {
+          role: 'assistant',
+          content: 'Hello! I\'m your AI assistant. How can I help you today?',
+          timestamp: new Date()
+        }
+      ]);
+    }
+  }, [chatHistory]);
+
+  // Chat mutation
+  const chatMutation = useMutation({
+    mutationFn: async (message: string) => {
+      const res = await apiRequest("POST", "/api/chat", { message });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      // Add AI response to messages
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: data.message,
+        timestamp: new Date(),
+        creditsUsed: data.creditsUsed
+      }]);
+      
+      // Update user credits in cache
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      
+      // Show success toast
+      toast({
+        title: "Message sent",
+        description: `Used ${data.creditsUsed} credit(s). ${data.remainingCredits} remaining.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || chatMutation.isPending) return;
     
     const userMessage = {
       role: 'user' as const,
@@ -31,20 +85,13 @@ export default function AppPage() {
       timestamp: new Date()
     };
     
+    // Add user message immediately
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = inputMessage;
     setInputMessage('');
-    setIsLoading(true);
     
-    // Simulate AI response (in a real app, this would call your AI API)
-    setTimeout(() => {
-      const aiResponse = {
-        role: 'assistant' as const,
-        content: `I received your message: "${userMessage.content}". This is a demo response. In a real implementation, this would connect to your AI service and provide intelligent responses based on your SAAS product's capabilities.`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiResponse]);
-      setIsLoading(false);
-    }, 1000);
+    // Send to AI API
+    chatMutation.mutate(messageContent);
   };
 
   return (
@@ -103,7 +150,7 @@ export default function AppPage() {
                     </div>
                   </div>
                 ))}
-                {isLoading && (
+                {chatMutation.isPending && (
                   <div className="flex justify-start">
                     <div className="bg-muted rounded-lg px-4 py-2 max-w-[60%]">
                       <div className="flex items-center space-x-1">
@@ -132,15 +179,15 @@ export default function AppPage() {
                   }}
                   className="resize-none"
                   rows={1}
-                  disabled={isLoading}
+                  disabled={chatMutation.isPending}
                   data-testid="input-chat-message"
                 />
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!inputMessage.trim() || isLoading}
+                  disabled={!inputMessage.trim() || chatMutation.isPending}
                   data-testid="button-send-message"
                 >
-                  {isLoading ? (
+                  {chatMutation.isPending ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
                   ) : (
                     <span className="material-symbols-outlined">send</span>
@@ -148,7 +195,7 @@ export default function AppPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Each message costs 1-5 credits depending on complexity. You have {user?.credits || 0} credits remaining.
+                Each message costs credits based on length (1 credit per ~100 characters). You have {user?.credits || 0} credits remaining.
               </p>
             </div>
           </div>

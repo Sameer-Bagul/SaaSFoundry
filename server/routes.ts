@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTransactionSchema, insertUserSettingsSchema, insertSupportTicketSchema } from "@shared/schema";
+import { insertTransactionSchema, insertUserSettingsSchema, insertSupportTicketSchema, insertChatMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import crypto from "crypto";
 
@@ -273,6 +273,99 @@ export function registerRoutes(app: Express): Server {
 
     const tickets = await storage.getSupportTickets(req.user!.id);
     res.json(tickets);
+  });
+
+  // Chat endpoint
+  app.post("/api/chat", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const { message } = req.body;
+    
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ message: "Message is required" });
+    }
+
+    const user = req.user!;
+    const creditsRequired = Math.max(1, Math.floor(message.length / 100)); // 1 credit per ~100 characters, minimum 1
+
+    if (user.credits < creditsRequired) {
+      return res.status(400).json({ 
+        message: `Insufficient credits. Required: ${creditsRequired}, Available: ${user.credits}` 
+      });
+    }
+
+    try {
+      // Save user message
+      const userMessage = await storage.createChatMessage({
+        userId: user.id,
+        role: "user",
+        content: message,
+        creditsUsed: 0,
+      });
+
+      // Simple AI response simulation (in production, replace with actual AI API call)
+      const aiResponses = [
+        "That's a great question! Let me help you with that.",
+        "I understand what you're asking. Here's my perspective on this topic.",
+        "Based on your message, I can provide some insights that might be helpful.",
+        "Thank you for sharing that with me. Let me think about this and provide a thoughtful response.",
+        "This is an interesting point you've raised. Let me break this down for you.",
+        "I appreciate your question. Here's how I would approach this situation.",
+      ];
+      
+      const baseResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+      const aiResponse = `${baseResponse}\n\nRegarding your message: "${message.length > 100 ? message.substring(0, 100) + '...' : message}"\n\nThis is a demonstration response from the AI assistant. In a production environment, this would be replaced with actual AI processing using services like OpenAI GPT, Anthropic Claude, or similar AI models. The response would be tailored to your specific query and provide relevant, helpful information.`;
+
+      // Save AI response
+      await storage.createChatMessage({
+        userId: user.id,
+        role: "assistant",
+        content: aiResponse,
+        creditsUsed: creditsRequired,
+      });
+
+      // Deduct credits from user
+      await storage.updateUser(user.id, {
+        credits: user.credits - creditsRequired,
+      });
+
+      // Log API usage
+      await storage.createApiUsage({
+        userId: user.id,
+        endpoint: "/api/chat",
+        method: "POST",
+        creditsUsed: creditsRequired,
+        success: true,
+      });
+
+      res.json({
+        message: aiResponse,
+        creditsUsed: creditsRequired,
+        remainingCredits: user.credits - creditsRequired,
+      });
+    } catch (error) {
+      console.error("Error processing chat:", error);
+      
+      // Log failed API usage
+      await storage.createApiUsage({
+        userId: user.id,
+        endpoint: "/api/chat",
+        method: "POST",
+        creditsUsed: 0,
+        success: false,
+      });
+
+      res.status(500).json({ message: "Failed to process chat message" });
+    }
+  });
+
+  // Get chat history
+  app.get("/api/chat/history", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const limit = parseInt(req.query.limit as string) || 50;
+    const messages = await storage.getChatMessages(req.user!.id, limit);
+    res.json(messages);
   });
 
   const httpServer = createServer(app);
