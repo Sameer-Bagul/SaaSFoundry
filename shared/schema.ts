@@ -13,7 +13,7 @@ export const users = pgTable("users", {
   phone: text("phone"),
   company: text("company"),
   avatar: text("avatar"),
-  credits: integer("credits").default(0).notNull(),
+  tokens: integer("tokens").default(0).notNull(),
   apiKey: text("api_key"),
   isEmailVerified: boolean("is_email_verified").default(false).notNull(),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
@@ -25,7 +25,7 @@ export const transactions = pgTable("transactions", {
   userId: varchar("user_id").references(() => users.id).notNull(),
   transactionId: text("transaction_id").notNull().unique(),
   packageName: text("package_name").notNull(),
-  credits: integer("credits").notNull(),
+  tokens: integer("tokens").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   currency: text("currency").notNull(),
   status: text("status").notNull(), // completed, pending, failed
@@ -43,7 +43,7 @@ export const userSettings = pgTable("user_settings", {
   language: text("language").default("en").notNull(),
   emailNotifications: boolean("email_notifications").default(true).notNull(),
   pushNotifications: boolean("push_notifications").default(false).notNull(),
-  creditAlerts: boolean("credit_alerts").default(true).notNull(),
+  tokenAlerts: boolean("token_alerts").default(true).notNull(),
   dataAnalytics: boolean("data_analytics").default(true).notNull(),
   marketingCommunications: boolean("marketing_communications").default(false).notNull(),
   rateLimit: integer("rate_limit").default(100).notNull(),
@@ -67,7 +67,7 @@ export const apiUsage = pgTable("api_usage", {
   userId: varchar("user_id").references(() => users.id).notNull(),
   endpoint: text("endpoint").notNull(),
   method: text("method").notNull(),
-  creditsUsed: integer("credits_used").notNull(),
+  tokensUsed: integer("tokens_used").notNull(),
   success: boolean("success").notNull(),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
@@ -77,7 +77,7 @@ export const chatMessages = pgTable("chat_messages", {
   userId: varchar("user_id").references(() => users.id).notNull(),
   role: text("role").notNull(), // 'user' or 'assistant'
   content: text("content").notNull(),
-  creditsUsed: integer("credits_used").default(0).notNull(),
+  tokensUsed: integer("tokens_used").default(0).notNull(),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
@@ -87,7 +87,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
   apiKey: true,
-  credits: true,
+  tokens: true,
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({

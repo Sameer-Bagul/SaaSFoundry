@@ -12,7 +12,7 @@ interface SidebarProps {
 const navigation = [
   { name: "AI Assistant", href: "/app", icon: "smart_toy" },
   { name: "Dashboard", href: "/dashboard", icon: "dashboard" },
-  { name: "Buy Credits", href: "/buy-credits", icon: "account_balance_wallet" },
+  { name: "Buy Tokens", href: "/tokens", icon: "account_balance_wallet" },
   { name: "Profile", href: "/profile", icon: "person" },
   { name: "Payment History", href: "/payments", icon: "receipt_long" },
   { name: "Settings", href: "/settings", icon: "settings" },

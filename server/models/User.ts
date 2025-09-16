@@ -11,7 +11,7 @@ export interface IUser extends Document {
   phone?: string;
   company?: string;
   avatar?: string;
-  credits: number;
+  tokens: number;
   apiKey?: string;
   isEmailVerified: boolean;
   createdAt: Date;
@@ -63,7 +63,7 @@ const userSchema = new Schema<IUser>({
     type: String,
     trim: true
   },
-  credits: {
+  tokens: {
     type: Number,
     default: 0,
     min: 0

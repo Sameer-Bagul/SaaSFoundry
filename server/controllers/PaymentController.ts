@@ -3,29 +3,29 @@ import Transaction, { ITransaction } from '../models/Transaction';
 import User, { IUser } from '../models/User';
 import RazorpayService from '../services/RazorpayService';
 
-// Credit packages available for purchase (aligned with frontend)
-export const CREDIT_PACKAGES = {
-  starter: { credits: 1000, basePrice: 9.99, name: 'Starter Pack' },
-  professional: { credits: 5000, basePrice: 39.99, name: 'Professional' },
-  enterprise: { credits: 15000, basePrice: 99.99, name: 'Enterprise' },
-  unlimited: { credits: 50000, basePrice: 299.99, name: 'Unlimited' }
+// Token packages available for purchase (aligned with frontend)
+export const TOKEN_PACKAGES = {
+  starter: { tokens: 1000, basePrice: 19.99, name: 'Starter Pack' },
+  professional: { tokens: 5000, basePrice: 79.99, name: 'Professional' },
+  enterprise: { tokens: 15000, basePrice: 199.99, name: 'Enterprise' },
+  unlimited: { tokens: 50000, basePrice: 499.99, name: 'Unlimited' }
 };
 
 export class PaymentController {
-  // Get available credit packages with pricing for user's country
+  // Get available token packages with pricing for user's country
   static async getPackages(req: Request, res: Response) {
     try {
       const { country = 'US' } = req.query;
       const billingCountry = String(country).toUpperCase();
 
-      const packages = Object.entries(CREDIT_PACKAGES).map(([key, pkg]) => {
+      const packages = Object.entries(TOKEN_PACKAGES).map(([key, pkg]) => {
         const taxInfo = RazorpayService.getTaxInfo(billingCountry);
         const currency = billingCountry === 'IN' ? 'INR' : 'USD';
         
-        // Convert USD to INR if needed (simplified conversion - in production, use real exchange rates)
+        // Convert USD to INR if needed (1 USD = 88 INR based on 1 token = $2 USD = ₹176 INR)
         let basePrice = pkg.basePrice;
         if (currency === 'INR') {
-          basePrice = pkg.basePrice * 83; // Approximate USD to INR conversion
+          basePrice = pkg.basePrice * 88; // USD to INR conversion
         }
 
         const taxAmount = taxInfo.applicable ? basePrice * taxInfo.rate : 0;
@@ -34,7 +34,7 @@ export class PaymentController {
         return {
           id: key,
           name: pkg.name,
-          credits: pkg.credits,
+          tokens: pkg.tokens,
           basePrice,
           taxAmount,
           finalPrice,
@@ -66,7 +66,7 @@ export class PaymentController {
       const { packageId, billingCountry = 'US' } = req.body;
 
       // Validate package
-      const selectedPackage = CREDIT_PACKAGES[packageId as keyof typeof CREDIT_PACKAGES];
+      const selectedPackage = TOKEN_PACKAGES[packageId as keyof typeof TOKEN_PACKAGES];
       if (!selectedPackage) {
         return res.status(400).json({ error: 'Invalid package selected' });
       }
@@ -77,7 +77,7 @@ export class PaymentController {
       // Calculate pricing
       let basePrice = selectedPackage.basePrice;
       if (currency === 'INR') {
-        basePrice = selectedPackage.basePrice * 83; // Convert USD to INR
+        basePrice = selectedPackage.basePrice * 88; // Convert USD to INR
       }
 
       const taxInfo = RazorpayService.getTaxInfo(country);
@@ -91,7 +91,7 @@ export class PaymentController {
         userId: user._id,
         transactionId,
         packageName: selectedPackage.name,
-        credits: selectedPackage.credits,
+        tokens: selectedPackage.tokens,
         originalAmount: basePrice,
         amount: finalPrice,
         currency,
@@ -124,7 +124,7 @@ export class PaymentController {
         package: {
           id: packageId,
           name: selectedPackage.name,
-          credits: selectedPackage.credits
+          tokens: selectedPackage.tokens
         },
         billing: {
           country,

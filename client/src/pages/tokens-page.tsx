@@ -9,14 +9,14 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import Sidebar from "@/components/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-interface CreditPackage {
-  credits: number;
+interface TokenPackage {
+  tokens: number;
   priceUSD: number;
   priceINR: number;
   name: string;
 }
 
-export default function CreditsPage() {
+export default function TokensPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -24,13 +24,29 @@ export default function CreditsPage() {
   const [selectedPackage, setSelectedPackage] = useState<string>("professional");
   const [currency, setCurrency] = useState<"USD" | "INR">("USD");
 
-  const { data: packages, isLoading: packagesLoading } = useQuery({
+  const { data: packages, isLoading: packagesLoading } = useQuery<Record<string, TokenPackage>>({
     queryKey: ["/api/credits/packages"],
+    select: (res: any) => {
+      const list = Array.isArray(res?.packages) ? res.packages : res;
+      const map: Record<string, TokenPackage> = {};
+      for (const p of Array.isArray(list) ? list : []) {
+        const tokens = (p.tokens ?? p.credits) ?? 0;
+        const priceUSD = +(tokens * 2).toFixed(2);
+        const priceINR = Math.round(priceUSD * 88);
+        map[p.id ?? p.key ?? p.name?.toLowerCase() ?? "unknown"] = {
+          name: p.name,
+          tokens,
+          priceUSD,
+          priceINR
+        };
+      }
+      return map;
+    }
   });
 
   const createOrderMutation = useMutation({
     mutationFn: async (data: { packageType: string; currency: string }) => {
-      const res = await apiRequest("POST", "/api/credits/create-order", data);
+      const res = await apiRequest("POST", "/api/tokens/create-order", data);
       return await res.json();
     },
     onSuccess: (orderData) => {
@@ -47,13 +63,13 @@ export default function CreditsPage() {
 
   const verifyPaymentMutation = useMutation({
     mutationFn: async (paymentData: any) => {
-      const res = await apiRequest("POST", "/api/credits/verify-payment", paymentData);
+      const res = await apiRequest("POST", "/api/tokens/verify-payment", paymentData);
       return await res.json();
     },
     onSuccess: () => {
       toast({
         title: "Payment successful!",
-        description: "Credits have been added to your account.",
+        description: "Tokens have been added to your account.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
@@ -67,6 +83,14 @@ export default function CreditsPage() {
   });
 
   const handleRazorpayPayment = (orderData: any) => {
+    if (!packages || !packages[selectedPackage]) {
+      toast({
+        title: "Package not found",
+        description: "Selected package is not available.",
+        variant: "destructive",
+      });
+      return;
+    }
     // In a real implementation, you would load the Razorpay SDK
     // and create the payment interface here
     const options = {
@@ -75,7 +99,7 @@ export default function CreditsPage() {
       currency: orderData.currency,
       order_id: orderData.orderId,
       name: "AISAAS",
-      description: `${packages[selectedPackage].name} - ${packages[selectedPackage].credits} Credits`,
+      description: `${packages[selectedPackage].name} - ${packages[selectedPackage].tokens} Tokens`,
       handler: function (response: any) {
         verifyPaymentMutation.mutate({
           razorpayOrderId: orderData.orderId,
@@ -143,8 +167,8 @@ export default function CreditsPage() {
         <div className="bg-background border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-heading text-2xl font-bold">Buy Credits</h1>
-              <p className="text-muted-foreground">Purchase credits to power your AI operations</p>
+              <h1 className="font-heading text-2xl font-bold">Buy Tokens</h1>
+              <p className="text-muted-foreground">Purchase tokens to power your AI operations</p>
             </div>
             {isMobile && (
               <Button
@@ -167,11 +191,11 @@ export default function CreditsPage() {
                 <div>
                   <h3 className="font-heading text-lg font-semibold mb-2">Current Balance</h3>
                   <div className="flex items-center space-x-4">
-                    <div className="text-3xl font-bold text-primary" data-testid="text-current-credits">
-                      {user?.credits?.toLocaleString() || 0} Credits
+                    <div className="text-3xl font-bold text-primary" data-testid="text-current-tokens">
+                      {user?.tokens?.toLocaleString() || 0} Tokens
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      ≈ ${((user?.credits || 0) * 0.01).toFixed(2)} USD value
+                      ≈ ${((user?.tokens || 0) * 2).toFixed(2)} USD value
                     </div>
                   </div>
                 </div>
@@ -184,9 +208,9 @@ export default function CreditsPage() {
 
           {/* Credit Packages */}
           <div className="mb-8">
-            <h3 className="font-heading text-lg font-semibold mb-6">Choose Credit Package</h3>
+            <h3 className="font-heading text-lg font-semibold mb-6">Choose Token Package</h3>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {packages && Object.entries(packages).map(([key, pkg]: [string, any]) => (
+              {packages && Object.entries(packages).map(([key, pkg]) => (
                 <Card 
                   key={key}
                   className={`cursor-pointer transition-colors ${
@@ -205,9 +229,9 @@ export default function CreditsPage() {
                   <CardContent className="p-6 text-center">
                     <h4 className="font-heading text-xl font-semibold mb-2">{pkg.name}</h4>
                     <div className="text-3xl font-bold text-primary mb-2">
-                      {pkg.credits.toLocaleString()}
+                      {pkg.tokens.toLocaleString()}
                     </div>
-                    <div className="text-muted-foreground mb-4">Credits</div>
+                    <div className="text-muted-foreground mb-4">Tokens</div>
                     <div className="space-y-1">
                       <div className="text-lg font-semibold">${pkg.priceUSD} USD</div>
                       <div className="text-sm text-muted-foreground">₹{pkg.priceINR} INR</div>
@@ -249,13 +273,13 @@ export default function CreditsPage() {
                 </div>
 
                 {/* Selected Package Display */}
-                {packages && selectedPackage && (
+                {packages && selectedPackage && packages[selectedPackage] && (
                   <div className="mb-6 p-4 bg-muted rounded-lg" data-testid="selected-package-display">
                     <div className="flex justify-between items-center">
                       <div>
                         <div className="font-medium">{packages[selectedPackage].name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {packages[selectedPackage].credits.toLocaleString()} Credits
+                          {packages[selectedPackage].tokens.toLocaleString()} Tokens
                         </div>
                       </div>
                       <div className="text-right">

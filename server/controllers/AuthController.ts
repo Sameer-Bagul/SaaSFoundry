@@ -27,7 +27,7 @@ export class AuthController {
         password,
         firstName,
         lastName,
-        credits: 0
+        tokens: 0
       });
 
       await user.save();
@@ -48,7 +48,7 @@ export class AuthController {
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
-            credits: user.credits,
+            tokens: user.tokens,
             isEmailVerified: user.isEmailVerified
           }
         });
@@ -80,7 +80,7 @@ export class AuthController {
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
-            credits: user.credits,
+            tokens: user.tokens,
             isEmailVerified: user.isEmailVerified
           }
         });
