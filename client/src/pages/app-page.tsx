@@ -25,7 +25,7 @@ export default function AppPage() {
 
   // Initialize messages with history + welcome message
   useEffect(() => {
-    if (chatHistory && chatHistory.length > 0) {
+    if (chatHistory && Array.isArray(chatHistory) && chatHistory.length > 0) {
       setMessages(chatHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content,
@@ -112,7 +112,7 @@ export default function AppPage() {
               </div>
               <div className="flex items-center gap-3">
                 <Badge variant="secondary" className="text-sm">
-                  {user?.credits || 0} Credits
+                  {user?.tokens || 0} Credits
                 </Badge>
                 <Link href="/buy-credits">
                   <Button size="sm" data-testid="button-buy-credits">
@@ -195,7 +195,7 @@ export default function AppPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Each message costs credits based on length (1 credit per ~100 characters). You have {user?.credits || 0} credits remaining.
+                Each message costs credits based on length (1 credit per ~100 characters). You have {user?.tokens || 0} credits remaining.
               </p>
             </div>
           </div>

@@ -2,13 +2,10 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import mongoose from 'mongoose';
-import connectDB from './config/database';
 import { config } from './config/environment';
 import { setupVite, serveStatic, log } from "./vite";
-
-// Import models
-import User, { IUser } from './models/User';
+import { storage } from './storage';
+import { type User } from '@shared/schema';
 
 // Import routes
 import authRoutes from './routes/authRoutes';
@@ -52,20 +49,23 @@ passport.use(new LocalStrategy(
   async (username: string, password: string, done) => {
     try {
       // Find user by username or email
-      const user = await User.findOne({
-        $or: [{ username }, { email: username }]
-      });
+      let user = await storage.getUserByUsername(username);
+      if (!user) {
+        user = await storage.getUserByEmail(username);
+      }
 
       if (!user) {
         return done(null, false, { message: 'Invalid credentials' });
       }
 
-      // Check password
-      const isValidPassword = await user.comparePassword(password);
+      // Verify password using bcrypt
+      const bcrypt = await import('bcryptjs');
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      
       if (!isValidPassword) {
         return done(null, false, { message: 'Invalid credentials' });
       }
-
+      
       return done(null, user as any);
     } catch (error) {
       return done(error);
@@ -75,14 +75,20 @@ passport.use(new LocalStrategy(
 
 // Serialize user
 passport.serializeUser((user: any, done) => {
-  done(null, user._id);
+  done(null, user.id);
 });
 
 // Deserialize user
 passport.deserializeUser(async (id: string, done) => {
   try {
-    const user = await User.findById(id).select('-password');
-    done(null, user as any);
+    const user = await storage.getUser(id);
+    if (user) {
+      // Remove password from user object for security
+      const { password, ...userWithoutPassword } = user;
+      done(null, userWithoutPassword as any);
+    } else {
+      done(null, false);
+    }
   } catch (error) {
     done(error, null);
   }
@@ -127,24 +133,23 @@ app.use('/api/support', supportRoutes);
 app.use('/api/payments', paymentRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  const mongoStatus = (() => {
-    switch (mongoose.connection.readyState) {
-      case 0: return 'disconnected';
-      case 1: return 'connected';
-      case 2: return 'connecting';
-      case 3: return 'disconnecting';
-      default: return 'unknown';
-    }
-  })();
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'unknown';
+  try {
+    // Test database connection by attempting a simple query
+    await storage.getUser('test'); // This will fail gracefully if DB is down
+    dbStatus = 'connected';
+  } catch (error) {
+    dbStatus = 'disconnected';
+  }
 
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
     server: 'running',
     database: {
-      mongodb: mongoStatus,
-      url: config.mongodbUrl ? 'configured' : 'not configured'
+      postgresql: dbStatus,
+      url: process.env.DATABASE_URL ? 'configured' : 'not configured'
     },
     environment: config.nodeEnv
   });
@@ -159,11 +164,17 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ message });
 });
 
-// Start server with MongoDB connection
+// Start server with PostgreSQL connection
 const startServer = async () => {
   try {
-    // Try to connect to MongoDB (non-fatal)
-    const isDbConnected = await connectDB(config.mongodbUrl);
+    // Test PostgreSQL connection
+    let isDbConnected = false;
+    try {
+      await storage.getUser('test'); // Test connection
+      isDbConnected = true;
+    } catch (error) {
+      isDbConnected = false;
+    }
 
     // Create HTTP server
     const server = app.listen({
@@ -183,7 +194,7 @@ const startServer = async () => {
     log(`📄 Environment: ${config.nodeEnv}`);
     
     if (isDbConnected) {
-      log(`🗄️  Database: Connected to MongoDB`);
+      log(`🗄️  Database: Connected to PostgreSQL`);
     } else {
       log(`⚠️  Database: Not connected - API routes will return errors until database is configured`);
     }

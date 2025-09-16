@@ -1,0 +1,8 @@
+{
+  "dialect": "postgresql",
+  "schema": "./shared/schema.ts",
+  "out": "./drizzle",
+  "dbCredentials": {
+    "url": "postgresql://postgres:password@helium/heliumdb?sslmode=disable"
+  }
+}

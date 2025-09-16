@@ -25,6 +25,8 @@ const registerSchema = insertUserSchema.extend({
   lastName: z.string().min(1, "Last name is required"),
   username: z.string().min(1, "Username is required"),
   email: z.string().min(1, "Email is required").email("Please enter a valid email"),
+  phone: z.string().min(10, "Please enter a valid phone number").optional(),
+  country: z.string().min(1, "Please select your country"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string().min(1, "Please confirm your password"),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -54,6 +56,8 @@ export default function AuthPage() {
       confirmPassword: "",
       firstName: "",
       lastName: "",
+      phone: "",
+      country: "",
     },
   });
 
@@ -212,6 +216,41 @@ export default function AuthPage() {
                     error={registerForm.formState.errors.email?.message}
                     {...registerForm.register("email")}
                   />
+                  <div className="grid grid-cols-2 gap-4">
+                    <CustomInput
+                      label="Phone Number"
+                      type="tel"
+                      placeholder="+1 (555) 123-4567"
+                      data-testid="input-phone"
+                      error={registerForm.formState.errors.phone?.message}
+                      {...registerForm.register("phone")}
+                    />
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Country</label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        data-testid="select-country"
+                        {...registerForm.register("country")}
+                      >
+                        <option value="">Select Country</option>
+                        <option value="US">United States</option>
+                        <option value="IN">India</option>
+                        <option value="UK">United Kingdom</option>
+                        <option value="CA">Canada</option>
+                        <option value="AU">Australia</option>
+                        <option value="DE">Germany</option>
+                        <option value="FR">France</option>
+                        <option value="JP">Japan</option>
+                        <option value="SG">Singapore</option>
+                        <option value="other">Other</option>
+                      </select>
+                      {registerForm.formState.errors.country && (
+                        <p className="text-sm text-destructive">
+                          {registerForm.formState.errors.country.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                   <CustomInput
                     label="Password"
                     type="password"
