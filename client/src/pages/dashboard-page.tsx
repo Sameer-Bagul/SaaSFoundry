@@ -68,7 +68,7 @@ export default function DashboardPage() {
                 <div className="flex items-center space-x-2">
                   <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
                   <span className="font-medium" data-testid="text-credits">
-                    {user?.credits?.toLocaleString() || 0} Credits
+                    {user?.tokens?.toLocaleString() || 0} Tokens
                   </span>
                 </div>
               </Card>
@@ -84,9 +84,9 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-muted-foreground text-sm">Total Credits</p>
+                    <p className="text-muted-foreground text-sm">Total Tokens</p>
                     <p className="text-2xl font-bold" data-testid="stat-total-credits">
-                      {(stats as any)?.totalCredits?.toLocaleString() || '0'}
+                      {(stats as any)?.totalTokens?.toLocaleString() || '0'}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -104,9 +104,9 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-muted-foreground text-sm">Credits Used</p>
+                    <p className="text-muted-foreground text-sm">Tokens Used</p>
                     <p className="text-2xl font-bold" data-testid="stat-credits-used">
-                      {(stats as any)?.creditsUsed?.toLocaleString() || '0'}
+                      {(stats as any)?.tokensUsed?.toLocaleString() || '0'}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-chart-2/10 rounded-lg flex items-center justify-center">
@@ -218,11 +218,11 @@ export default function DashboardPage() {
                   <div className="space-y-3">
                     <Button 
                       className="w-full justify-start" 
-                      onClick={() => setLocation("/credits")}
+                      onClick={() => setLocation("/tokens")}
                       data-testid="button-buy-credits"
                     >
                       <span className="material-symbols-outlined mr-2">add</span>
-                      Buy Credits
+                      Buy Tokens
                     </Button>
                     <Button variant="outline" className="w-full justify-start">
                       <span className="material-symbols-outlined mr-2">upload</span>
@@ -242,14 +242,14 @@ export default function DashboardPage() {
                   <div className="space-y-3">
                     <div>
                       <div className="flex justify-between text-sm mb-1">
-                        <span>Credits Used</span>
-                        <span>{(stats as any)?.creditsUsed || 0} / {(stats as any)?.totalCredits || 0}</span>
+                        <span>Tokens Used</span>
+                        <span>{(stats as any)?.tokensUsed || 0} / {(stats as any)?.totalTokens || 0}</span>
                       </div>
                       <div className="w-full bg-secondary rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full" 
                           style={{ 
-                            width: `${(stats as any)?.totalCredits ? Math.min(((stats as any).creditsUsed / (stats as any).totalCredits) * 100, 100) : 0}%` 
+                            width: `${(stats as any)?.totalTokens ? Math.min(((stats as any).tokensUsed / (stats as any).totalTokens) * 100, 100) : 0}%` 
                           }}
                         ></div>
                       </div>

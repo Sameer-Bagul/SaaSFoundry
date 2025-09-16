@@ -44,7 +44,7 @@ export default function PaymentSuccessPage() {
             Payment Successful! 🎉
           </CardTitle>
           <CardDescription>
-            Your credits have been added to your account successfully.
+            Your tokens have been added to your account successfully.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -53,7 +53,7 @@ export default function PaymentSuccessPage() {
               Transaction completed successfully
             </p>
             <p className="text-xs text-green-600 mt-1">
-              You should see your new credits in your account within a few seconds.
+              You should see your new tokens in your account within a few seconds.
             </p>
           </div>
 
@@ -61,11 +61,11 @@ export default function PaymentSuccessPage() {
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Current Balance:</span>
               <Badge variant="secondary" className="text-sm">
-                {user?.credits || 0} Credits
+                {user?.tokens || 0} Tokens
               </Badge>
             </div>
             <div className="text-xs text-muted-foreground">
-              You can start using your credits immediately for AI API calls.
+              You can start using your tokens immediately for AI API calls.
             </div>
           </div>
 
@@ -76,10 +76,10 @@ export default function PaymentSuccessPage() {
                 Go to Dashboard
               </Button>
             </Link>
-            <Link href="/buy-credits">
+            <Link href="/tokens">
               <Button variant="outline" className="w-full" data-testid="button-buy-more-credits">
                 <span className="material-symbols-outlined mr-2">add</span>
-                Buy More Credits
+                Buy More Tokens
               </Button>
             </Link>
           </div>

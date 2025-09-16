@@ -112,12 +112,12 @@ export default function AppPage() {
               </div>
               <div className="flex items-center gap-3">
                 <Badge variant="secondary" className="text-sm">
-                  {user?.tokens || 0} Credits
+                  {user?.tokens || 0} Tokens
                 </Badge>
-                <Link href="/buy-credits">
+                <Link href="/tokens">
                   <Button size="sm" data-testid="button-buy-credits">
                     <span className="material-symbols-outlined mr-1 text-sm">add</span>
-                    Buy Credits
+                    Buy Tokens
                   </Button>
                 </Link>
               </div>
@@ -195,7 +195,7 @@ export default function AppPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Each message costs credits based on length (1 credit per ~100 characters). You have {user?.tokens || 0} credits remaining.
+                Each message costs tokens based on length (1 token per ~100 characters). You have {user?.tokens || 0} tokens remaining.
               </p>
             </div>
           </div>

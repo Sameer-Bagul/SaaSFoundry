@@ -9,11 +9,11 @@ import crypto from "crypto";
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
-  // Credit packages configuration
-  const creditPackages = {
-    starter: { credits: 1000, priceUSD: 10, priceINR: 800, name: "Starter Pack" },
-    professional: { credits: 5000, priceUSD: 45, priceINR: 3600, name: "Professional Pack" },
-    enterprise: { credits: 10000, priceUSD: 80, priceINR: 6400, name: "Enterprise Pack" }
+  // Token packages configuration
+  const tokenPackages = {
+    starter: { tokens: 1000, priceUSD: 10, priceINR: 800, name: "Starter Pack" },
+    professional: { tokens: 5000, priceUSD: 45, priceINR: 3600, name: "Professional Pack" },
+    enterprise: { tokens: 10000, priceUSD: 80, priceINR: 6400, name: "Enterprise Pack" }
   };
 
   // Get user dashboard stats
@@ -28,15 +28,15 @@ export function registerRoutes(app: Express): Server {
       .filter(t => t.status === "completed")
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-    const creditsUsed = apiUsage.reduce((sum, u) => sum + u.creditsUsed, 0);
+    const tokensUsed = apiUsage.reduce((sum, u) => sum + u.tokensUsed, 0);
     const apiCalls = apiUsage.length;
     const successRate = apiUsage.length > 0 
       ? (apiUsage.filter(u => u.success).length / apiUsage.length) * 100 
       : 100;
 
     res.json({
-      totalCredits: user.credits,
-      creditsUsed,
+      totalTokens: user.tokens,
+      tokensUsed,
       apiCalls,
       successRate: successRate.toFixed(1),
       totalSpent: totalSpent.toFixed(2),
@@ -54,8 +54,8 @@ export function registerRoutes(app: Express): Server {
     const activity = [
       ...transactions.slice(0, 3).map(t => ({
         type: "transaction",
-        title: "Credits Purchased",
-        description: `${t.credits} credits added to account`,
+        title: "Tokens Purchased",
+        description: `${t.tokens} tokens added to account`,
         time: t.createdAt,
         icon: "account_balance_wallet",
       })),
@@ -71,9 +71,9 @@ export function registerRoutes(app: Express): Server {
     res.json(activity);
   });
 
-  // Get credit packages
-  app.get("/api/credits/packages", (req, res) => {
-    res.json(creditPackages);
+  // Get token packages
+  app.get("/api/tokens/packages", (req, res) => {
+    res.json(tokenPackages);
   });
 
   // Create Razorpay order

@@ -25,12 +25,12 @@ export default function TokensPage() {
   const [currency, setCurrency] = useState<"USD" | "INR">("USD");
 
   const { data: packages, isLoading: packagesLoading } = useQuery<Record<string, TokenPackage>>({
-    queryKey: ["/api/credits/packages"],
+    queryKey: ["/api/tokens/packages"],
     select: (res: any) => {
       const list = Array.isArray(res?.packages) ? res.packages : res;
       const map: Record<string, TokenPackage> = {};
       for (const p of Array.isArray(list) ? list : []) {
-        const tokens = (p.tokens ?? p.credits) ?? 0;
+        const tokens = p.tokens ?? 0;
         const priceUSD = +(tokens * 2).toFixed(2);
         const priceINR = Math.round(priceUSD * 88);
         map[p.id ?? p.key ?? p.name?.toLowerCase() ?? "unknown"] = {
@@ -206,7 +206,7 @@ export default function TokensPage() {
             </CardContent>
           </Card>
 
-          {/* Credit Packages */}
+          {/* Token Packages */}
           <div className="mb-8">
             <h3 className="font-heading text-lg font-semibold mb-6">Choose Token Package</h3>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
