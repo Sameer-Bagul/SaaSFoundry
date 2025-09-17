@@ -1,6 +1,10 @@
-## 🔹 **Migrate the codebase into the MongoDB databse only**
+## **Migrate the codebase into the MongoDB databse only**
+[ ] change the codebase to use the MongoDB database onlt in the project 
 
-## 🔹 **Routing & Access Control**
+## **Remove the unwanted files and fodlers from the codebase**
+[ ] Remove the unwanted files and fodlers from the codebase
+
+## **Routing & Access Control**
 
 * [ ] Ensure `/app` route **no longer shows account page**.
 
@@ -10,7 +14,7 @@
 
 ---
 
-## 🔹 **Authentication & User Management**
+## **Authentication & User Management**
 
 * [ ] Ensure **login & registration** system works correctly.
 * [ ] Add **mobile number field** during registration.
@@ -20,7 +24,7 @@
 
 ---
 
-## 🔹 **Token System**
+## **Token System**
 
 * [ ] Remove “credits” terminology → replace with **tokens** everywhere.
 * [ ] Set token pricing:
@@ -38,7 +42,7 @@
 
 ---
 
-## 🔹 **Payments (Razorpay Integration)**
+## **Payments (Razorpay Integration)**
 
 * [ ] Use test Razorpay keys for development.
 * [ ] Implement **end-to-end Razorpay payment flow**:
@@ -51,7 +55,7 @@
 
 ---
 
-## 🔹 **Invoices & Billing**
+## **Invoices & Billing**
 
 * [ ] Use **react-pdf** to generate invoices for each successful payment.
 * [ ] Add a **Billing section in `/account` page** where user can:
@@ -67,7 +71,7 @@
 
 ---
 
-## 🔹 **UI/UX Revamp**
+## **UI/UX Revamp**
 
 * [ ] Redesign `/account` page & all account-related pages for **better usability & modern UI**.
 * [ ] Use **clean SaaS design** (glassmorphism or modern minimal style).
@@ -77,7 +81,7 @@
 
 ---
 
-## 🔹 **Backend Enhancements**
+## **Backend Enhancements**
 
 * [ ] Add routes for:
 
@@ -91,7 +95,7 @@
 
 ---
 
-## 🔹 **Debugging & Optimization**
+## **Debugging & Optimization**
 
 * [ ] Fix existing bugs in authentication & routing.
 * [ ] Ensure session handling works correctly (no unauthorized access).
