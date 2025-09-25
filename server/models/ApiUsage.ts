@@ -5,7 +5,7 @@ export interface IApiUsage extends Document {
   userId: mongoose.Types.ObjectId;
   endpoint: string;
   method: string;
-  creditsUsed: number;
+  tokensUsed: number;
   success: boolean;
   createdAt: Date;
 }
@@ -26,7 +26,7 @@ const apiUsageSchema = new Schema<IApiUsage>({
     required: true,
     enum: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
   },
-  creditsUsed: {
+  tokensUsed: {
     type: Number,
     required: true,
     min: 0
@@ -43,4 +43,5 @@ const apiUsageSchema = new Schema<IApiUsage>({
 apiUsageSchema.index({ userId: 1, createdAt: -1 });
 apiUsageSchema.index({ endpoint: 1 });
 
-export default mongoose.model<IApiUsage>('ApiUsage', apiUsageSchema);
+const ApiUsage = mongoose.models.ApiUsage || mongoose.model<IApiUsage>('ApiUsage', apiUsageSchema);
+export default ApiUsage;

@@ -1,52 +1,64 @@
-import { type User, type InsertUser, type Transaction, type InsertTransaction, type UserSettings, type InsertUserSettings, type SupportTicket, type InsertSupportTicket, type ApiUsage, type InsertApiUsage, type ChatMessage, type InsertChatMessage } from "@shared/schema";
+import { type IUserType, type InsertUser, type ITransactionType, type InsertTransaction, type IUserSettingsType, type InsertUserSettings, type ISupportTicketType, type InsertSupportTicket, type IApiUsageType, type InsertApiUsage, type IChatMessageType, type InsertChatMessage, User as UserModel, Transaction as TransactionModel, UserSettings as UserSettingsModel, SupportTicket as SupportTicketModel, ApiUsage as ApiUsageModel, ChatMessage as ChatMessageModel } from "@shared/schema";
+
+// Simple types for MemStorage (without Mongoose Document methods)
+type MemUser = Omit<IUserType, keyof mongoose.Document> & { _id: string };
+type MemTransaction = Omit<ITransactionType, keyof mongoose.Document> & { _id: string };
+type MemUserSettings = Omit<IUserSettingsType, keyof mongoose.Document> & { _id: string };
+type MemSupportTicket = Omit<ISupportTicketType, keyof mongoose.Document> & { _id: string };
+type MemApiUsage = Omit<IApiUsageType, keyof mongoose.Document> & { _id: string };
+type MemChatMessage = Omit<IChatMessageType, keyof mongoose.Document> & { _id: string };
 import { randomUUID, randomBytes } from "crypto";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import MongoStore from "connect-mongo";
+import mongoose from "mongoose";
 
 const MemoryStore = createMemoryStore(session);
 
 export interface IStorage {
   // User methods
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  getUser(id: string): Promise<IUserType | undefined>;
+  getUserByUsername(username: string): Promise<IUserType | undefined>;
+  getUserByEmail(email: string): Promise<IUserType | undefined>;
+  createUser(user: InsertUser): Promise<IUserType>;
+  updateUser(id: string, updates: Partial<IUserType>): Promise<IUserType | undefined>;
   deleteUser(id: string): Promise<boolean>;
-  
+
   // Transaction methods
-  getTransactions(userId: string): Promise<Transaction[]>;
-  getTransaction(id: string): Promise<Transaction | undefined>;
-  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
-  updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction | undefined>;
-  
+  getTransactions(userId: string): Promise<ITransactionType[]>;
+  getTransaction(id: string): Promise<ITransactionType | undefined>;
+  getTransactionCount(query?: any): Promise<number>;
+  getTransactionsPaginated(query: any, options: { page: number; limit: number; sort: any }): Promise<ITransactionType[]>;
+  createTransaction(transaction: InsertTransaction): Promise<ITransactionType>;
+  updateTransaction(id: string, updates: Partial<ITransactionType>): Promise<ITransactionType | undefined>;
+
   // User settings methods
-  getUserSettings(userId: string): Promise<UserSettings | undefined>;
-  createUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
-  updateUserSettings(userId: string, updates: Partial<UserSettings>): Promise<UserSettings | undefined>;
-  
+  getUserSettings(userId: string): Promise<IUserSettingsType | undefined>;
+  createUserSettings(settings: InsertUserSettings): Promise<IUserSettingsType>;
+  updateUserSettings(userId: string, updates: Partial<IUserSettingsType>): Promise<IUserSettingsType | undefined>;
+
   // Support ticket methods
-  getSupportTickets(userId: string): Promise<SupportTicket[]>;
-  createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
-  
+  getSupportTickets(userId: string): Promise<ISupportTicketType[]>;
+  createSupportTicket(ticket: InsertSupportTicket): Promise<ISupportTicketType>;
+
   // API usage methods
-  createApiUsage(usage: InsertApiUsage): Promise<ApiUsage>;
-  getApiUsage(userId: string, startDate?: Date, endDate?: Date): Promise<ApiUsage[]>;
-  
+  createApiUsage(usage: InsertApiUsage): Promise<IApiUsageType>;
+  getApiUsage(userId: string, startDate?: Date, endDate?: Date): Promise<IApiUsageType[]>;
+
   // Chat message methods
-  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
-  getChatMessages(userId: string, limit?: number): Promise<ChatMessage[]>;
-  
+  createChatMessage(message: InsertChatMessage): Promise<IChatMessageType>;
+  getChatMessages(userId: string, limit?: number): Promise<IChatMessageType[]>;
+
   sessionStore: any;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private transactions: Map<string, Transaction>;
-  private userSettings: Map<string, UserSettings>;
-  private supportTickets: Map<string, SupportTicket>;
-  private apiUsage: Map<string, ApiUsage>;
-  private chatMessages: Map<string, ChatMessage>;
+  private users: Map<string, MemUser>;
+  private transactions: Map<string, MemTransaction>;
+  private userSettings: Map<string, MemUserSettings>;
+  private supportTickets: Map<string, MemSupportTicket>;
+  private apiUsage: Map<string, MemApiUsage>;
+  private chatMessages: Map<string, MemChatMessage>;
   sessionStore: any;
 
   constructor() {
@@ -62,38 +74,40 @@ export class MemStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getUser(id: string): Promise<IUserType | undefined> {
+    return this.users.get(id) as IUserType | undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByUsername(username: string): Promise<IUserType | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.username === username,
-    );
+    ) as IUserType | undefined;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
+  async getUserByEmail(email: string): Promise<IUserType | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.email === email,
-    );
+    ) as IUserType | undefined;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertUser): Promise<IUserType> {
     const id = randomUUID();
     const apiKey = `sk-${randomBytes(24).toString('hex')}`;
     const now = new Date();
-    const user: User = {
-      ...insertUser,
-      id,
-      apiKey,
+    const user: MemUser = {
+      _id: id,
+      username: insertUser.username,
+      email: insertUser.email,
+      password: insertUser.password,
+      firstName: insertUser.firstName,
+      lastName: insertUser.lastName,
+      phone: insertUser.phone,
+      country: insertUser.country,
+      company: insertUser.company,
+      avatar: insertUser.avatar,
       tokens: 0,
-      isEmailVerified: false,
-      firstName: insertUser.firstName || null,
-      lastName: insertUser.lastName || null,
-      phone: insertUser.phone || null,
-      country: insertUser.country || null,
-      company: insertUser.company || null,
-      avatar: insertUser.avatar || null,
+      apiKey,
+      isEmailVerified: insertUser.isEmailVerified || false,
       createdAt: now,
       updatedAt: now,
     };
@@ -112,16 +126,16 @@ export class MemStorage implements IStorage {
       rateLimit: 100,
     });
 
-    return user;
+    return user as IUserType;
   }
 
-  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+  async updateUser(id: string, updates: Partial<IUserType>): Promise<IUserType | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
 
-    const updatedUser = { ...user, ...updates, updatedAt: new Date() };
+    const updatedUser = { ...user, ...updates, updatedAt: new Date() } as MemUser;
     this.users.set(id, updatedUser);
-    return updatedUser;
+    return updatedUser as IUserType;
   }
 
   async deleteUser(id: string): Promise<boolean> {
@@ -129,22 +143,59 @@ export class MemStorage implements IStorage {
   }
 
   // Transaction methods
-  async getTransactions(userId: string): Promise<Transaction[]> {
+  async getTransactions(userId: string): Promise<MemTransaction[]> {
     return Array.from(this.transactions.values())
       .filter(transaction => transaction.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  async getTransaction(id: string): Promise<Transaction | undefined> {
+  async getTransaction(id: string): Promise<MemTransaction | undefined> {
     return this.transactions.get(id);
   }
 
-  async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
+  async getTransactionCount(query: any = {}): Promise<number> {
+    let transactions = Array.from(this.transactions.values());
+
+    // Apply filters based on query
+    if (query.userId) {
+      transactions = transactions.filter(t => t.userId === query.userId);
+    }
+    if (query.status) {
+      transactions = transactions.filter(t => t.status === query.status);
+    }
+
+    return transactions.length;
+  }
+
+  async getTransactionsPaginated(query: any, options: { page: number; limit: number; sort: any }): Promise<MemTransaction[]> {
+    const { page, limit, sort } = options;
+    let transactions = Array.from(this.transactions.values());
+
+    // Apply filters based on query
+    if (query.userId) {
+      transactions = transactions.filter(t => t.userId === query.userId);
+    }
+    if (query.status) {
+      transactions = transactions.filter(t => t.status === query.status);
+    }
+
+    // Apply sorting
+    if (sort && sort.createdAt === -1) {
+      transactions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    return transactions.slice(startIndex, endIndex);
+  }
+
+  async createTransaction(insertTransaction: InsertTransaction): Promise<MemTransaction> {
     const id = randomUUID();
     const now = new Date();
-    const transaction: Transaction = {
+    const transaction: MemTransaction = {
       ...insertTransaction,
-      id,
+      _id: id,
       paymentMethod: insertTransaction.paymentMethod || null,
       razorpayOrderId: insertTransaction.razorpayOrderId || null,
       razorpayPaymentId: insertTransaction.razorpayPaymentId || null,
@@ -155,7 +206,7 @@ export class MemStorage implements IStorage {
     return transaction;
   }
 
-  async updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction | undefined> {
+  async updateTransaction(id: string, updates: Partial<MemTransaction>): Promise<MemTransaction | undefined> {
     const transaction = this.transactions.get(id);
     if (!transaction) return undefined;
 
@@ -269,51 +320,48 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Use PostgreSQL database storage instead of memory storage
-import { db } from "./db";
-import { users, transactions, userSettings, supportTickets, apiUsage, chatMessages } from "@shared/schema";
-import { eq, and, gte, lte, desc, asc } from "drizzle-orm";
+// Use MongoDB database storage instead of memory storage
+import { User, Transaction, UserSettings, SupportTicket, ApiUsage, ChatMessage } from "@shared/schema";
 
 export class DatabaseStorage implements IStorage {
   sessionStore: any;
 
   constructor() {
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
+    this.sessionStore = MongoStore.create({
+      mongoUrl: process.env.MONGODB_URL || 'mongodb://localhost:27017/saasfoundry',
+      ttl: 24 * 60 * 60, // 1 day
     });
   }
 
   // User methods
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+  async getUser(id: string): Promise<IUserType | undefined> {
+    const user = await UserModel.findById(id);
+    return user ? user.toObject() : undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
+  async getUserByUsername(username: string): Promise<IUserType | undefined> {
+    const user = await UserModel.findOne({ username });
+    return user ? user.toObject() : undefined;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user || undefined;
+  async getUserByEmail(email: string): Promise<IUserType | undefined> {
+    const user = await UserModel.findOne({ email });
+    return user ? user.toObject() : undefined;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertUser): Promise<IUserType> {
     const apiKey = `sk-${randomBytes(24).toString('hex')}`;
-    const [user] = await db
-      .insert(users)
-      .values({
-        ...insertUser,
-        apiKey,
-        tokens: 0,
-        isEmailVerified: false,
-      })
-      .returning();
+    const user = new UserModel({
+      ...insertUser,
+      apiKey,
+      tokens: 0,
+      isEmailVerified: false,
+    });
+    const savedUser = await user.save();
 
     // Create default settings for the user
     await this.createUserSettings({
-      userId: user.id,
+      userId: savedUser._id.toString(),
       theme: "system",
       language: "en",
       emailNotifications: true,
@@ -324,136 +372,114 @@ export class DatabaseStorage implements IStorage {
       rateLimit: 100,
     });
 
-    return user;
+    return savedUser.toObject();
   }
 
-  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
-    const [user] = await db
-      .update(users)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(users.id, id))
-      .returning();
-    return user || undefined;
+  async updateUser(id: string, updates: Partial<IUserType>): Promise<IUserType | undefined> {
+    const user = await UserModel.findByIdAndUpdate(id, { ...updates, updatedAt: new Date() }, { new: true });
+    return user ? user.toObject() : undefined;
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    const result = await db.delete(users).where(eq(users.id, id));
-    return result.rowCount! > 0;
+    const result = await UserModel.findByIdAndDelete(id);
+    return !!result;
   }
 
   // Transaction methods
-  async getTransactions(userId: string): Promise<Transaction[]> {
-    return await db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.userId, userId))
-      .orderBy(desc(transactions.createdAt));
+  async getTransactions(userId: string): Promise<ITransactionType[]> {
+    const transactions = await TransactionModel.find({ userId }).sort({ createdAt: -1 }).lean();
+    return transactions;
   }
 
-  async getTransaction(id: string): Promise<Transaction | undefined> {
-    const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));
-    return transaction || undefined;
+  async getTransaction(id: string): Promise<ITransactionType | undefined> {
+    const transaction = await TransactionModel.findById(id);
+    return transaction ? transaction.toObject() : undefined;
   }
 
-  async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
-    const [transaction] = await db
-      .insert(transactions)
-      .values(insertTransaction)
-      .returning();
-    return transaction;
+  async getTransactionCount(query: any = {}): Promise<number> {
+    return await TransactionModel.countDocuments(query);
   }
 
-  async updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction | undefined> {
-    const [transaction] = await db
-      .update(transactions)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(transactions.id, id))
-      .returning();
-    return transaction || undefined;
+  async getTransactionsPaginated(query: any, options: { page: number; limit: number; sort: any }): Promise<ITransactionType[]> {
+    const { page, limit, sort } = options;
+    const skip = (page - 1) * limit;
+
+    const transactions = await TransactionModel
+      .find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean(); // Use lean() for better performance
+
+    return transactions;
+  }
+
+  async createTransaction(insertTransaction: InsertTransaction): Promise<ITransactionType> {
+    const transaction = new TransactionModel(insertTransaction);
+    const savedTransaction = await transaction.save();
+    return savedTransaction.toObject();
+  }
+
+  async updateTransaction(id: string, updates: Partial<ITransactionType>): Promise<ITransactionType | undefined> {
+    const transaction = await TransactionModel.findByIdAndUpdate(id, { ...updates, updatedAt: new Date() }, { new: true });
+    return transaction ? transaction.toObject() : undefined;
   }
 
   // User settings methods
-  async getUserSettings(userId: string): Promise<UserSettings | undefined> {
-    const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
-    return settings || undefined;
+  async getUserSettings(userId: string): Promise<IUserSettingsType | undefined> {
+    const settings = await UserSettingsModel.findOne({ userId });
+    return settings ? settings.toObject() : undefined;
   }
 
-  async createUserSettings(insertSettings: InsertUserSettings): Promise<UserSettings> {
-    const [settings] = await db
-      .insert(userSettings)
-      .values(insertSettings)
-      .returning();
-    return settings;
+  async createUserSettings(insertSettings: InsertUserSettings): Promise<IUserSettingsType> {
+    const settings = new UserSettingsModel(insertSettings);
+    const savedSettings = await settings.save();
+    return savedSettings.toObject();
   }
 
-  async updateUserSettings(userId: string, updates: Partial<UserSettings>): Promise<UserSettings | undefined> {
-    const [settings] = await db
-      .update(userSettings)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(userSettings.userId, userId))
-      .returning();
-    return settings || undefined;
+  async updateUserSettings(userId: string, updates: Partial<IUserSettingsType>): Promise<IUserSettingsType | undefined> {
+    const settings = await UserSettingsModel.findOneAndUpdate({ userId }, { ...updates, updatedAt: new Date() }, { new: true });
+    return settings ? settings.toObject() : undefined;
   }
 
   // Support ticket methods
-  async getSupportTickets(userId: string): Promise<SupportTicket[]> {
-    return await db
-      .select()
-      .from(supportTickets)
-      .where(eq(supportTickets.userId, userId))
-      .orderBy(desc(supportTickets.createdAt));
+  async getSupportTickets(userId: string): Promise<ISupportTicketType[]> {
+    const tickets = await SupportTicketModel.find({ userId }).sort({ createdAt: -1 });
+    return tickets.map(t => t.toObject());
   }
 
-  async createSupportTicket(insertTicket: InsertSupportTicket): Promise<SupportTicket> {
-    const [ticket] = await db
-      .insert(supportTickets)
-      .values({ ...insertTicket, status: "open" })
-      .returning();
-    return ticket;
+  async createSupportTicket(insertTicket: InsertSupportTicket): Promise<ISupportTicketType> {
+    const ticket = new SupportTicketModel({ ...insertTicket, status: "open" });
+    const savedTicket = await ticket.save();
+    return savedTicket.toObject();
   }
 
   // API usage methods
-  async createApiUsage(insertUsage: InsertApiUsage): Promise<ApiUsage> {
-    const [usage] = await db
-      .insert(apiUsage)
-      .values(insertUsage)
-      .returning();
-    return usage;
+  async createApiUsage(insertUsage: InsertApiUsage): Promise<IApiUsageType> {
+    const usage = new ApiUsageModel(insertUsage);
+    const savedUsage = await usage.save();
+    return savedUsage.toObject();
   }
 
-  async getApiUsage(userId: string, startDate?: Date, endDate?: Date): Promise<ApiUsage[]> {
-    let whereConditions = [eq(apiUsage.userId, userId)];
+  async getApiUsage(userId: string, startDate?: Date, endDate?: Date): Promise<IApiUsageType[]> {
+    const query: any = { userId };
+    if (startDate) query.createdAt = { $gte: startDate };
+    if (endDate) query.createdAt = { ...query.createdAt, $lte: endDate };
 
-    if (startDate) {
-      whereConditions.push(gte(apiUsage.createdAt, startDate));
-    }
-    if (endDate) {
-      whereConditions.push(lte(apiUsage.createdAt, endDate));
-    }
-
-    return await db
-      .select()
-      .from(apiUsage)
-      .where(and(...whereConditions))
-      .orderBy(desc(apiUsage.createdAt));
+    const usages = await ApiUsageModel.find(query).sort({ createdAt: -1 });
+    return usages.map(u => u.toObject());
   }
 
   // Chat message methods
-  async createChatMessage(insertMessage: InsertChatMessage): Promise<ChatMessage> {
-    const [message] = await db
-      .insert(chatMessages)
-      .values(insertMessage)
-      .returning();
-    return message;
+  async createChatMessage(insertMessage: InsertChatMessage): Promise<IChatMessageType> {
+    const message = new ChatMessageModel(insertMessage);
+    const savedMessage = await message.save();
+    return savedMessage.toObject();
   }
 
-  async getChatMessages(userId: string, limit: number = 50): Promise<ChatMessage[]> {
-    return await db
-      .select()
-      .from(chatMessages)
-      .where(eq(chatMessages.userId, userId))
-      .orderBy(asc(chatMessages.createdAt))
-      .limit(limit);
+  async getChatMessages(userId: string, limit: number = 50): Promise<IChatMessageType[]> {
+    const messages = await ChatMessageModel.find({ userId }).sort({ createdAt: 1 }).limit(limit);
+    return messages.map(m => m.toObject());
   }
 }
 

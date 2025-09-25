@@ -5,7 +5,7 @@ export interface ITransaction extends Document {
   userId: mongoose.Types.ObjectId;
   transactionId: string;
   packageName: string;
-  credits: number;
+  tokens: number;
   amount: number;
   originalAmount: number; // Amount before tax
   currency: 'USD' | 'INR';
@@ -18,6 +18,7 @@ export interface ITransaction extends Document {
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;
+  invoiceFileName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,7 +39,7 @@ const transactionSchema = new Schema<ITransaction>({
     required: true,
     trim: true
   },
-  credits: {
+  tokens: {
     type: Number,
     required: true,
     min: 0
@@ -102,6 +103,10 @@ const transactionSchema = new Schema<ITransaction>({
   razorpaySignature: {
     type: String,
     trim: true
+  },
+  invoiceFileName: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true
@@ -109,7 +114,11 @@ const transactionSchema = new Schema<ITransaction>({
 
 // Index for faster queries
 transactionSchema.index({ userId: 1, createdAt: -1 });
+transactionSchema.index({ userId: 1, status: 1 });
 transactionSchema.index({ status: 1 });
+transactionSchema.index({ razorpayOrderId: 1 });
+transactionSchema.index({ createdAt: -1 });
 // transactionId already has unique index from field definition, no need for separate index
 
-export default mongoose.model<ITransaction>('Transaction', transactionSchema);
+const Transaction = mongoose.models.Transaction || mongoose.model<ITransaction>('Transaction', transactionSchema);
+export default Transaction;

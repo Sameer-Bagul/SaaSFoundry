@@ -3,15 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import Sidebar from "@/components/sidebar";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useState } from "react";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const isMobile = useIsMobile();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["/api/dashboard/stats"],
@@ -23,16 +18,13 @@ export default function DashboardPage() {
 
   if (statsLoading) {
     return (
-      <div className="flex">
-        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-        <div className="flex-1 lg:ml-64 p-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-muted rounded mb-4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 bg-muted rounded-lg"></div>
-              ))}
-            </div>
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-muted rounded mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-32 bg-muted rounded-lg"></div>
+            ))}
           </div>
         </div>
       </div>
@@ -40,52 +32,39 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-      
-      <div className="flex-1 lg:ml-64">
-        {/* Header */}
-        <div className="bg-background border-b border-border px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-heading text-2xl font-bold">Dashboard</h1>
-              <p className="text-muted-foreground">
-                Welcome back, {user?.firstName || user?.username || 'User'}
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              {isMobile && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSidebarOpen(true)}
-                  data-testid="button-mobile-menu"
-                >
-                  <span className="material-symbols-outlined">menu</span>
-                </Button>
-              )}
-              <Card className="px-4 py-2 border border-border">
-                <div className="flex items-center space-x-2">
-                  <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
-                  <span className="font-medium" data-testid="text-credits">
-                    {user?.tokens?.toLocaleString() || 0} Tokens
-                  </span>
-                </div>
-              </Card>
-            </div>
+    <div className="flex-1">
+      {/* Header */}
+      <div className="bg-background border-b border-border px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-heading text-2xl font-bold">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome back, {user?.firstName || user?.username || 'User'}
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Card className="px-4 py-2 border border-border">
+              <div className="flex items-center space-x-2">
+                <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
+                <span className="font-medium" data-testid="text-tokens">
+                  {user?.tokens?.toLocaleString() || 0} Tokens
+                </span>
+              </div>
+            </Card>
           </div>
         </div>
+      </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Content */}
+      <div className="p-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-muted-foreground text-sm">Total Tokens</p>
-                    <p className="text-2xl font-bold" data-testid="stat-total-credits">
+                    <p className="text-2xl font-bold" data-testid="stat-total-tokens">
                       {(stats as any)?.totalTokens?.toLocaleString() || '0'}
                     </p>
                   </div>
@@ -105,7 +84,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-muted-foreground text-sm">Tokens Used</p>
-                    <p className="text-2xl font-bold" data-testid="stat-credits-used">
+                    <p className="text-2xl font-bold" data-testid="stat-tokens-used">
                       {(stats as any)?.tokensUsed?.toLocaleString() || '0'}
                     </p>
                   </div>
@@ -216,10 +195,10 @@ export default function DashboardPage() {
                 <CardContent className="p-6">
                   <h3 className="font-heading text-lg font-semibold mb-4">Quick Actions</h3>
                   <div className="space-y-3">
-                    <Button 
-                      className="w-full justify-start" 
-                      onClick={() => setLocation("/tokens")}
-                      data-testid="button-buy-credits"
+                    <Button
+                      className="w-full justify-start"
+                      onClick={() => setLocation("/account/tokens")}
+                      data-testid="button-buy-tokens"
                     >
                       <span className="material-symbols-outlined mr-2">add</span>
                       Buy Tokens
@@ -274,7 +253,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

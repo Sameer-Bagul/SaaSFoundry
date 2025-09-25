@@ -1,11 +1,12 @@
 import express, { type Request, Response, NextFunction } from "express";
-import session from "express-session";
-import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
+import cookieParser from 'cookie-parser';
+import mongoose from 'mongoose';
 import { config } from './config/environment';
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from './storage';
-import { type User } from '@shared/schema';
+import { type IUserType } from '@shared/schema';
+import { connectDB } from './db';
+import { requireAuth } from './middleware/auth';
 
 // Import routes
 import authRoutes from './routes/authRoutes';
@@ -13,6 +14,7 @@ import userRoutes from './routes/userRoutes';
 import transactionRoutes from './routes/transactionRoutes';
 import supportRoutes from './routes/supportRoutes';
 import paymentRoutes from './routes/paymentRoutes';
+import tokenRoutes from './routes/tokenRoutes';
 
 // Create Express app
 const app = express();
@@ -23,76 +25,7 @@ app.set('trust proxy', 1);
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-// Session configuration
-app.use(session({
-  secret: config.sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: config.isProduction,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax', // Important for cross-origin requests in development
-    httpOnly: true // Security: prevent XSS attacks
-  }
-}));
-
-// Passport configuration
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Configure Local Strategy
-passport.use(new LocalStrategy(
-  {
-    usernameField: 'username'
-  },
-  async (username: string, password: string, done) => {
-    try {
-      // Find user by username or email
-      let user = await storage.getUserByUsername(username);
-      if (!user) {
-        user = await storage.getUserByEmail(username);
-      }
-
-      if (!user) {
-        return done(null, false, { message: 'Invalid credentials' });
-      }
-
-      // Verify password using bcrypt
-      const bcrypt = await import('bcryptjs');
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      
-      if (!isValidPassword) {
-        return done(null, false, { message: 'Invalid credentials' });
-      }
-      
-      return done(null, user as any);
-    } catch (error) {
-      return done(error);
-    }
-  }
-));
-
-// Serialize user
-passport.serializeUser((user: any, done) => {
-  done(null, user.id);
-});
-
-// Deserialize user
-passport.deserializeUser(async (id: string, done) => {
-  try {
-    const user = await storage.getUser(id);
-    if (user) {
-      // Remove password from user object for security
-      const { password, ...userWithoutPassword } = user;
-      done(null, userWithoutPassword as any);
-    } else {
-      done(null, false);
-    }
-  } catch (error) {
-    done(error, null);
-  }
-});
+app.use(cookieParser());
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -131,25 +64,28 @@ app.use('/api/user', userRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/tokens', tokenRoutes);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   let dbStatus = 'unknown';
   try {
-    // Test database connection by attempting a simple query
-    await storage.getUser('test'); // This will fail gracefully if DB is down
-    dbStatus = 'connected';
+    // Check if mongoose connection is ready (1 = connected)
+    const readyState = mongoose.connection.readyState;
+    console.log('Health check - Database connection readyState:', readyState);
+    dbStatus = readyState === 1 ? 'connected' : 'disconnected';
   } catch (error) {
+    console.log('Health check - Database connection test error:', error);
     dbStatus = 'disconnected';
   }
 
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     server: 'running',
     database: {
-      postgresql: dbStatus,
-      url: process.env.DATABASE_URL ? 'configured' : 'not configured'
+      mongodb: dbStatus,
+      url: process.env.MONGODB_URL ? 'configured' : 'not configured'
     },
     environment: config.nodeEnv
   });
@@ -164,14 +100,18 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ message });
 });
 
-// Start server with PostgreSQL connection
+// Start server with MongoDB connection
 const startServer = async () => {
   try {
-    // Test PostgreSQL connection
+    // Connect to MongoDB
+    await connectDB();
+
+    // Test MongoDB connection
     let isDbConnected = false;
     try {
-      await storage.getUser('test'); // Test connection
-      isDbConnected = true;
+      // Check if mongoose connection is ready (1 = connected, 2 = connecting)
+      const readyState = mongoose.connection.readyState;
+      isDbConnected = readyState === 1 || readyState === 2;
     } catch (error) {
       isDbConnected = false;
     }
@@ -192,11 +132,11 @@ const startServer = async () => {
 
     log(`🚀 Server running on port ${config.port}`);
     log(`📄 Environment: ${config.nodeEnv}`);
-    
+
     if (isDbConnected) {
-      log(`🗄️  Database: Connected to PostgreSQL`);
+      log(`🗄️  Database: Connected to MongoDB`);
     } else {
-      log(`⚠️  Database: Not connected - API routes will return errors until database is configured`);
+      log(`⚠️  Database: Connection pending - API routes may return errors until fully connected`);
     }
 
     return server;

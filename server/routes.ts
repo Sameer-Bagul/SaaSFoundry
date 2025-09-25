@@ -11,9 +11,9 @@ export function registerRoutes(app: Express): Server {
 
   // Token packages configuration
   const tokenPackages = {
-    starter: { tokens: 1000, priceUSD: 10, priceINR: 800, name: "Starter Pack" },
-    professional: { tokens: 5000, priceUSD: 45, priceINR: 3600, name: "Professional Pack" },
-    enterprise: { tokens: 10000, priceUSD: 80, priceINR: 6400, name: "Enterprise Pack" }
+    starter: { tokens: 10, priceUSD: 20, priceINR: 1760, name: "10 Tokens Pack" },
+    professional: { tokens: 50, priceUSD: 100, priceINR: 8800, name: "50 Tokens Pack" },
+    enterprise: { tokens: 100, priceUSD: 200, priceINR: 17600, name: "100 Tokens Pack" }
   };
 
   // Get user dashboard stats
@@ -21,7 +21,7 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
     const user = req.user!;
-    const transactions = await storage.getTransactions(user.id);
+    const transactions = await storage.getTransactions(user._id);
     const apiUsage = await storage.getApiUsage(user.id);
 
     const totalSpent = transactions
@@ -48,8 +48,8 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
     const user = req.user!;
-    const transactions = await storage.getTransactions(user.id);
-    const apiUsage = await storage.getApiUsage(user.id);
+    const transactions = await storage.getTransactions(user._id);
+    const apiUsage = await storage.getApiUsage(user._id);
 
     const activity = [
       ...transactions.slice(0, 3).map(t => ({
@@ -76,85 +76,50 @@ export function registerRoutes(app: Express): Server {
     res.json(tokenPackages);
   });
 
+
   // Create Razorpay order
-  app.post("/api/credits/create-order", async (req, res) => {
+  app.post("/api/tokens/create-order", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const { packageType, currency } = req.body;
-    
-    if (!creditPackages[packageType as keyof typeof creditPackages]) {
-      return res.status(400).json({ message: "Invalid package type" });
+    const { packageType, currency, customQuantity } = req.body;
+
+    // Map frontend package types to backend package IDs
+    let packageId: string;
+    if (customQuantity && parseInt(customQuantity) > 0) {
+      // For custom quantity, we'll handle it in the controller
+      packageId = 'custom';
+      req.body.packageId = packageId;
+      req.body.customTokens = parseInt(customQuantity);
+    } else {
+      // Map frontend package types to backend IDs
+      const packageMapping: { [key: string]: string } = {
+        '10': '10',
+        '50': '50',
+        '100': '100'
+      };
+      packageId = packageMapping[packageType] || packageType;
+      req.body.packageId = packageId;
     }
 
-    const pkg = creditPackages[packageType as keyof typeof creditPackages];
-    const amount = currency === "INR" ? pkg.priceINR : pkg.priceUSD;
+    req.body.billingCountry = currency === 'INR' ? 'IN' : 'US';
 
-    try {
-      // In a real implementation, you would use the Razorpay SDK here
-      const orderId = `order_${crypto.randomBytes(12).toString('hex')}`;
-      
-      // Create pending transaction
-      await storage.createTransaction({
-        userId: req.user!.id,
-        transactionId: `txn_${crypto.randomBytes(12).toString('hex')}`,
-        packageName: pkg.name,
-        credits: pkg.credits,
-        amount: amount.toString(),
-        currency,
-        status: "pending",
-        paymentMethod: "razorpay",
-        razorpayOrderId: orderId,
-        razorpayPaymentId: null,
-      });
-
-      res.json({
-        orderId,
-        amount: amount * 100, // Razorpay expects amount in paise/cents
-        currency,
-        key: process.env.RAZORPAY_KEY_ID || "rzp_test_key",
-      });
-    } catch (error) {
-      console.error("Error creating order:", error);
-      res.status(500).json({ message: "Failed to create order" });
-    }
+    // Use PaymentController.createOrder
+    const { PaymentController } = await import('./controllers/PaymentController');
+    return PaymentController.createOrder(req, res);
   });
 
-  // Verify payment and update credits
-  app.post("/api/credits/verify-payment", async (req, res) => {
+  // Verify payment and update tokens
+  app.post("/api/tokens/verify-payment", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    // Map frontend field names to backend expected names
+    req.body.razorpay_order_id = req.body.razorpayOrderId;
+    req.body.razorpay_payment_id = req.body.razorpayPaymentId;
+    req.body.razorpay_signature = req.body.razorpaySignature;
 
-    try {
-      // In a real implementation, you would verify the signature with Razorpay
-      // For now, we'll simulate successful verification
-      
-      const transaction = await storage.getTransactions(req.user!.id);
-      const pendingTransaction = transaction.find(t => 
-        t.razorpayOrderId === razorpayOrderId && t.status === "pending"
-      );
-
-      if (!pendingTransaction) {
-        return res.status(400).json({ message: "Transaction not found" });
-      }
-
-      // Update transaction status
-      await storage.updateTransaction(pendingTransaction.id, {
-        status: "completed",
-        razorpayPaymentId,
-      });
-
-      // Add credits to user
-      const user = req.user!;
-      await storage.updateUser(user.id, {
-        credits: user.credits + pendingTransaction.credits,
-      });
-
-      res.json({ message: "Payment verified and credits added successfully" });
-    } catch (error) {
-      console.error("Error verifying payment:", error);
-      res.status(500).json({ message: "Failed to verify payment" });
-    }
+    // Use PaymentController.verifyPayment
+    const { PaymentController } = await import('./controllers/PaymentController');
+    return PaymentController.verifyPayment(req, res);
   });
 
   // Get user profile
@@ -172,7 +137,7 @@ export function registerRoutes(app: Express): Server {
 
     try {
       const { firstName, lastName, email, phone, company } = req.body;
-      const updatedUser = await storage.updateUser(req.user!.id, {
+      const updatedUser = await storage.updateUser(req.user!._id, {
         firstName,
         lastName,
         email,
@@ -196,7 +161,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/payments", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const transactions = await storage.getTransactions(req.user!.id);
+    const transactions = await storage.getTransactions(req.user!._id);
     res.json(transactions);
   });
 
@@ -204,17 +169,17 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/payments/summary", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const transactions = await storage.getTransactions(req.user!.id);
+    const transactions = await storage.getTransactions(req.user!._id);
     const completedTransactions = transactions.filter(t => t.status === "completed");
 
-    const totalSpent = completedTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const totalSpent = completedTransactions.reduce((sum, t) => sum + t.amount, 0);
     const totalTransactions = completedTransactions.length;
-    const totalCredits = completedTransactions.reduce((sum, t) => sum + t.credits, 0);
+    const totalTokens = completedTransactions.reduce((sum, t) => sum + t.tokens, 0);
 
     res.json({
       totalSpent: totalSpent.toFixed(2),
       totalTransactions,
-      totalCredits,
+      totalTokens,
     });
   });
 
@@ -222,7 +187,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/settings", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const settings = await storage.getUserSettings(req.user!.id);
+    const settings = await storage.getUserSettings(req.user!._id);
     if (!settings) {
       return res.status(404).json({ message: "Settings not found" });
     }
@@ -236,7 +201,7 @@ export function registerRoutes(app: Express): Server {
 
     try {
       const updateData = insertUserSettingsSchema.partial().parse(req.body);
-      const updatedSettings = await storage.updateUserSettings(req.user!.id, updateData);
+      const updatedSettings = await storage.updateUserSettings(req.user!._id, updateData);
 
       if (!updatedSettings) {
         return res.status(404).json({ message: "Settings not found" });
@@ -256,7 +221,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const ticketData = insertSupportTicketSchema.parse({
         ...req.body,
-        userId: req.user!.id,
+        userId: req.user!._id,
       });
 
       const ticket = await storage.createSupportTicket(ticketData);
@@ -271,7 +236,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/support/tickets", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const tickets = await storage.getSupportTickets(req.user!.id);
+    const tickets = await storage.getSupportTickets(req.user!._id);
     res.json(tickets);
   });
 
@@ -286,21 +251,21 @@ export function registerRoutes(app: Express): Server {
     }
 
     const user = req.user!;
-    const creditsRequired = Math.max(1, Math.floor(message.length / 100)); // 1 credit per ~100 characters, minimum 1
+    const tokensRequired = Math.max(1, Math.floor(message.length / 100)); // 1 token per ~100 characters, minimum 1
 
-    if (user.credits < creditsRequired) {
+    if (user.tokens < tokensRequired) {
       return res.status(400).json({ 
-        message: `Insufficient credits. Required: ${creditsRequired}, Available: ${user.credits}` 
+        message: `Insufficient tokens. Required: ${tokensRequired}, Available: ${user.tokens}`
       });
     }
 
     try {
       // Save user message
       const userMessage = await storage.createChatMessage({
-        userId: user.id,
+        userId: user._id,
         role: "user",
         content: message,
-        creditsUsed: 0,
+        tokensUsed: 0,
       });
 
       // Simple AI response simulation (in production, replace with actual AI API call)
@@ -318,40 +283,40 @@ export function registerRoutes(app: Express): Server {
 
       // Save AI response
       await storage.createChatMessage({
-        userId: user.id,
+        userId: user._id,
         role: "assistant",
         content: aiResponse,
-        creditsUsed: creditsRequired,
+        tokensUsed: tokensRequired,
       });
 
       // Deduct credits from user
-      await storage.updateUser(user.id, {
-        credits: user.credits - creditsRequired,
+      await storage.updateUser(user._id, {
+        tokens: user.tokens - tokensRequired,
       });
 
       // Log API usage
       await storage.createApiUsage({
-        userId: user.id,
+        userId: user._id,
         endpoint: "/api/chat",
         method: "POST",
-        creditsUsed: creditsRequired,
+        tokensUsed: tokensRequired,
         success: true,
       });
 
       res.json({
         message: aiResponse,
-        creditsUsed: creditsRequired,
-        remainingCredits: user.credits - creditsRequired,
+        tokensUsed: tokensRequired,
+        remainingTokens: user.tokens - tokensRequired,
       });
     } catch (error) {
       console.error("Error processing chat:", error);
       
       // Log failed API usage
       await storage.createApiUsage({
-        userId: user.id,
+        userId: user._id,
         endpoint: "/api/chat",
         method: "POST",
-        creditsUsed: 0,
+        tokensUsed: 0,
         success: false,
       });
 
@@ -364,7 +329,7 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
     const limit = parseInt(req.query.limit as string) || 50;
-    const messages = await storage.getChatMessages(req.user!.id, limit);
+    const messages = await storage.getChatMessages(req.user!._id, limit);
     res.json(messages);
   });
 

@@ -5,19 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import Sidebar from "@/components/sidebar";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { ITransactionType } from "@shared/schema";
 
 export default function PaymentHistoryPage() {
-  const isMobile = useIsMobile();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filter, setFilter] = useState("all");
 
-  const { data: transactions, isLoading: transactionsLoading } = useQuery({
+  const { data: transactions, isLoading: transactionsLoading } = useQuery<ITransactionType[]>({
     queryKey: ["/api/payments"],
   });
 
-  const { data: summary, isLoading: summaryLoading } = useQuery({
+  const { data: summary, isLoading: summaryLoading } = useQuery<{
+    totalSpent: string;
+    totalTransactions: number;
+    totalTokens: number;
+  }>({
     queryKey: ["/api/payments/summary"],
   });
 
@@ -41,9 +42,8 @@ export default function PaymentHistoryPage() {
 
   if (transactionsLoading || summaryLoading) {
     return (
-      <div className="flex">
-        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-        <div className="flex-1 lg:ml-64 p-6">
+      <>
+        <div className="p-6">
           <div className="animate-pulse">
             <div className="h-8 bg-muted rounded mb-4"></div>
             <div className="grid md:grid-cols-3 gap-6 mb-8">
@@ -54,81 +54,69 @@ export default function PaymentHistoryPage() {
             <div className="h-96 bg-muted rounded-lg"></div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-      
-      <div className="flex-1 lg:ml-64">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-background border-b border-border px-6 py-4">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-white/20 dark:border-slate-700/50 px-6 py-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-heading text-2xl font-bold">Payment History</h1>
-              <p className="text-muted-foreground">View all your transactions and receipts</p>
+              <h1 className="font-heading text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Payment History</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">View all your transactions and receipts</p>
             </div>
-            {isMobile && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarOpen(true)}
-                data-testid="button-mobile-menu"
-              >
-                <span className="material-symbols-outlined">menu</span>
-              </Button>
-            )}
           </div>
         </div>
 
         <div className="p-6">
           {/* Summary Cards */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <Card>
-              <CardContent className="p-6">
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl">
+              <CardContent className="p-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-muted-foreground text-sm">Total Spent</p>
-                    <p className="text-2xl font-bold" data-testid="summary-total-spent">
+                    <p className="text-blue-700 dark:text-blue-300 text-sm font-medium">Total Spent</p>
+                    <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-2" data-testid="summary-total-spent">
                       ${summary?.totalSpent || "0.00"}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <span className="material-symbols-outlined text-primary">payments</span>
+                  <div className="w-16 h-16 bg-blue-500/20 dark:bg-blue-500/30 rounded-2xl flex items-center justify-center shadow-lg">
+                    <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">payments</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
+            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl">
+              <CardContent className="p-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-muted-foreground text-sm">Total Transactions</p>
-                    <p className="text-2xl font-bold" data-testid="summary-total-transactions">
+                    <p className="text-green-700 dark:text-green-300 text-sm font-medium">Total Transactions</p>
+                    <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-2" data-testid="summary-total-transactions">
                       {summary?.totalTransactions || 0}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-chart-2/10 rounded-lg flex items-center justify-center">
-                    <span className="material-symbols-outlined text-chart-2">receipt_long</span>
+                  <div className="w-16 h-16 bg-green-500/20 dark:bg-green-500/30 rounded-2xl flex items-center justify-center shadow-lg">
+                    <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-2xl">receipt_long</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
+            <Card className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 border-purple-200 dark:border-purple-800/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl">
+              <CardContent className="p-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-muted-foreground text-sm">Credits Purchased</p>
-                    <p className="text-2xl font-bold" data-testid="summary-total-credits">
-                      {summary?.totalCredits?.toLocaleString() || 0}
+                    <p className="text-purple-700 dark:text-purple-300 text-sm font-medium">Tokens Purchased</p>
+                    <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 mt-2" data-testid="summary-total-tokens">
+                      {summary?.totalTokens?.toLocaleString() || 0}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-chart-3/10 rounded-lg flex items-center justify-center">
-                    <span className="material-symbols-outlined text-chart-3">account_balance_wallet</span>
+                  <div className="w-16 h-16 bg-purple-500/20 dark:bg-purple-500/30 rounded-2xl flex items-center justify-center shadow-lg">
+                    <span className="material-symbols-outlined text-purple-600 dark:text-purple-400 text-2xl">account_balance_wallet</span>
                   </div>
                 </div>
               </CardContent>
@@ -136,23 +124,23 @@ export default function PaymentHistoryPage() {
           </div>
 
           {/* Transaction Table */}
-          <Card>
-            <div className="p-6 border-b border-border">
+          <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-white/30 dark:border-slate-700/50 shadow-xl rounded-2xl">
+            <div className="p-8 border-b border-white/30 dark:border-slate-700/50">
               <div className="flex items-center justify-between">
-                <h3 className="font-heading text-lg font-semibold">Recent Transactions</h3>
+                <h3 className="font-heading text-xl font-semibold text-slate-800 dark:text-white">Recent Transactions</h3>
                 <div className="flex items-center space-x-4">
                   <Select value={filter} onValueChange={setFilter}>
-                    <SelectTrigger className="w-48" data-testid="filter-transactions">
+                    <SelectTrigger className="w-52 bg-white/50 dark:bg-slate-700/50 border-white/30 dark:border-slate-600/50 rounded-xl" data-testid="filter-transactions">
                       <SelectValue placeholder="Filter transactions" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Transactions</SelectItem>
-                      <SelectItem value="completed">Successful</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
+                    <SelectContent className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-white/30 dark:border-slate-700/50">
+                      <SelectItem value="all" className="hover:bg-slate-100 dark:hover:bg-slate-800">All Transactions</SelectItem>
+                      <SelectItem value="completed" className="hover:bg-slate-100 dark:hover:bg-slate-800">Successful</SelectItem>
+                      <SelectItem value="failed" className="hover:bg-slate-100 dark:hover:bg-slate-800">Failed</SelectItem>
+                      <SelectItem value="pending" className="hover:bg-slate-100 dark:hover:bg-slate-800">Pending</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" size="sm" data-testid="button-export-csv">
+                  <Button variant="outline" size="sm" className="border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl" data-testid="button-export-csv">
                     <span className="material-symbols-outlined mr-2">download</span>
                     Export CSV
                   </Button>
@@ -172,8 +160,8 @@ export default function PaymentHistoryPage() {
                     }
                   </p>
                   {filter === "all" && (
-                    <Button onClick={() => window.location.href = "/credits"} data-testid="button-buy-credits">
-                      Buy Your First Credits
+                    <Button onClick={() => window.location.href = "/tokens"} data-testid="button-buy-tokens">
+                      Buy Your First Tokens
                     </Button>
                   )}
                 </div>
@@ -206,7 +194,7 @@ export default function PaymentHistoryPage() {
                           <div>
                             <div className="font-medium">{transaction.packageName}</div>
                             <div className="text-sm text-muted-foreground">
-                              {transaction.credits.toLocaleString()} Credits
+                              {transaction.tokens.toLocaleString()} Tokens
                             </div>
                           </div>
                         </TableCell>

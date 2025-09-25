@@ -1,68 +1,68 @@
 ## **Migrate the codebase into the MongoDB databse only**
-[ ] change the codebase to use the MongoDB database onlt in the project 
+[x] change the codebase to use the MongoDB database onlt in the project 
 
 ## **Remove the unwanted files and fodlers from the codebase**
-[ ] Remove the unwanted files and fodlers from the codebase
+[x] Remove the unwanted files and fodlers from the codebase
 
 ## **Routing & Access Control**
 
-* [ ] Ensure `/app` route **no longer shows account page**.
+* [x] Ensure `/app` route **no longer shows account page**.
 
   * Replace with **dummy ChatGPT-like UI** for now.
-* [ ] Make `/app` a **protected route** (only logged-in users can access).
-* [ ] Keep `/account` route for **all account management pages** (profile, billing, settings).
+* [x] Make `/app` a **protected route** (only logged-in users can access).
+* [x] Keep `/account` route for **all account management pages** (profile, billing, settings).
 
 ---
 
 ## **Authentication & User Management**
 
-* [ ] Ensure **login & registration** system works correctly.
-* [ ] Add **mobile number field** during registration.
-* [ ] Add **country selection** during registration.
-* [ ] Store user’s **mobile number & country** in the DB.
-* [ ] Show pricing in both **INR & USD** based on user country.
+* [x] Ensure **login & registration** system works correctly.
+* [x] Add **mobile number field** during registration.
+* [x] Add **country selection** during registration.
+* [x] Store user’s **mobile number & country** in the DB.
+* [x] Show pricing in both **INR & USD** based on user country.
 
 ---
 
 ## **Token System**
 
-* [ ] Remove “credits” terminology → replace with **tokens** everywhere.
-* [ ] Set token pricing:
+* [x] Remove “credits” terminology → replace with **tokens** everywhere.
+* [x] Set token pricing:
 
   * **1 token = \$2 = ₹176** (conversion ratio \$1 = ₹88).
-* [ ] Create a **dedicated Tokens page** with options:
+* [x] Create a **dedicated Tokens page** with options:
 
   * Buy 10 tokens
   * Buy 50 tokens
   * Buy 100 tokens
   * Custom token quantity input
-* [ ] Display price in **both USD and INR** (depending on user’s country).
-* [ ] Integrate backend logic for **token purchase & balance update**.
-* [ ] Save purchase history for billing section.
+* [x] Display price in **both USD and INR** (depending on user’s country).
+* [x] Integrate backend logic for **token purchase & balance update**.
+* [x] Save purchase history for billing section.
 
 ---
 
 ## **Payments (Razorpay Integration)**
 
-* [ ] Use test Razorpay keys for development.
-* [ ] Implement **end-to-end Razorpay payment flow**:
+* [x] Use test Razorpay keys for development.
+* [x] Implement **end-to-end Razorpay payment flow**:
 
   * Create Razorpay order on backend.
   * Open Razorpay checkout on frontend.
   * Verify payment signature.
   * On success: Add tokens to user’s account + save transaction.
-* [ ] Store payment details in DB (order\_id, payment\_id, status, tokens purchased).
+* [x] Store payment details in DB (order\_id, payment\_id, status, tokens purchased).
 
 ---
 
 ## **Invoices & Billing**
 
-* [ ] Use **react-pdf** to generate invoices for each successful payment.
-* [ ] Add a **Billing section in `/account` page** where user can:
+* [x] Use **react-pdf** to generate invoices for each successful payment.
+* [x] Add a **Billing section in `/account` page** where user can:
 
   * View all past transactions.
   * Download invoice as PDF.
-* [ ] Invoice fields:
+* [x] Invoice fields:
 
   * Invoice No.
   * User details (Name, Email, Mobile, Country).
@@ -73,35 +73,35 @@
 
 ## **UI/UX Revamp**
 
-* [ ] Redesign `/account` page & all account-related pages for **better usability & modern UI**.
-* [ ] Use **clean SaaS design** (glassmorphism or modern minimal style).
-* [ ] Improve token purchase page UI (pricing cards, custom input).
-* [ ] Improve `/app` UI (ChatGPT-like dummy chat interface).
-* [ ] Add **responsive design** (mobile & desktop).
+* [x] Redesign `/account` page & all account-related pages for **better usability & modern UI**.
+* [x] Use **clean SaaS design** (glassmorphism or modern minimal style).
+* [x] Improve token purchase page UI (pricing cards, custom input).
+* [x] Improve `/app` UI (ChatGPT-like dummy chat interface).
+* [x] Add **responsive design** (mobile & desktop).
 
 ---
 
 ## **Backend Enhancements**
 
-* [ ] Add routes for:
+* [x] Add routes for:
 
   * `/tokens/create-order` (Razorpay order creation).
   * `/tokens/verify-payment` (verify & add tokens).
   * `/tokens/history` (fetch user’s purchase history).
-* [ ] Add logic for token balance update after payment.
-* [ ] Optimize DB queries for performance.
-* [ ] Write modular controllers & services for cleaner code.
-* [ ] Add **error handling & logging**.
+* [x] Add logic for token balance update after payment.
+* [x] Optimize DB queries for performance.
+* [x] Write modular controllers & services for cleaner code.
+* [x] Add **error handling & logging**.
 
 ---
 
 ## **Debugging & Optimization**
 
-* [ ] Fix existing bugs in authentication & routing.
-* [ ] Ensure session handling works correctly (no unauthorized access).
-* [ ] Optimize API responses (reduce unnecessary DB calls).
-* [ ] Test all edge cases (payment failure, invalid country/mobile, etc.).
-* [ ] Make frontend & backend production-ready (modular & optimized).
+* [x] Fix existing bugs in authentication & routing.
+* [x] Ensure session handling works correctly (no unauthorized access).
+* [x] Optimize API responses (reduce unnecessary DB calls).
+* [x] Test all edge cases (payment failure, invalid country/mobile, etc.).
+* [x] Make frontend & backend production-ready (modular & optimized).
 
 ---
 

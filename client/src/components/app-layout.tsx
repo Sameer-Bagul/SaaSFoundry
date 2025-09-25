@@ -1,13 +1,11 @@
-import { Link, useLocation } from "wouter";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-
-interface SidebarProps {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-}
+import { Link, useLocation } from "wouter";
+import Navbar from "@/components/navbar";
+import Sidebar from "@/components/sidebar";
 
 const navigation = [
   { name: "AI Assistant", href: "/app", icon: "smart_toy" },
@@ -31,7 +29,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <span className="text-primary">AI</span>SAAS
         </div>
       </div>
-      
+
       <nav className="flex-1 mt-6 px-3">
         <div className="space-y-1">
           {navigation.map((item) => {
@@ -56,7 +54,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             );
           })}
         </div>
-        
+
         <div className="mt-8 pt-6 border-t border-border">
           <Button
             variant="ghost"
@@ -74,37 +72,50 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export default function Sidebar({ open, setOpen }: SidebarProps) {
-  return (
-    <>
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-card border-r border-border">
-          <SidebarContent />
-        </div>
-      </div>
+interface AppLayoutProps {
+  children: React.ReactNode;
+}
 
-      {/* Mobile Sidebar */}
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="p-0 w-64">
-          <div className="flex flex-col h-full bg-card">
-            <div className="flex items-center justify-between h-16 px-6 border-b border-border">
-              <div className="font-heading font-bold text-xl">
-                <span className="text-primary">AI</span>SAAS
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setOpen(false)}
-                data-testid="button-close-sidebar"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </Button>
-            </div>
-            <SidebarContent onNavigate={() => setOpen(false)} />
+export default function AppLayout({ children }: AppLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className="flex">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+          <div className="flex flex-col flex-grow bg-card border-r border-border">
+            <SidebarContent />
           </div>
-        </SheetContent>
-      </Sheet>
-    </>
+        </div>
+
+        {/* Mobile Sidebar */}
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent side="left" className="p-0 w-64">
+            <div className="flex flex-col h-full bg-card">
+              <div className="flex items-center justify-between h-16 px-6 border-b border-border">
+                <div className="font-heading font-bold text-xl">
+                  <span className="text-primary">AI</span>SAAS
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSidebarOpen(false)}
+                  data-testid="button-close-sidebar"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </Button>
+              </div>
+              <SidebarContent onNavigate={() => setSidebarOpen(false)} />
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Main Content */}
+        <main className="flex-1 lg:ml-64">
+          {children}
+        </main>
+      </div>
+    </div>
   );
 }

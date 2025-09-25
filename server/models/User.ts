@@ -80,22 +80,11 @@ const userSchema = new Schema<IUser>({
   timestamps: true
 });
 
-// Pre-save middleware to hash password
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error as Error);
-  }
-});
+// Password hashing is handled in the controller
 
 // Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-export default mongoose.model<IUser>('User', userSchema);
+export default mongoose.models.User || mongoose.model<IUser>('User', userSchema);

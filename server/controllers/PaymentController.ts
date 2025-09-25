@@ -1,14 +1,17 @@
 import { Request, Response } from 'express';
-import Transaction, { ITransaction } from '../models/Transaction';
-import User, { IUser } from '../models/User';
+import { storage } from '../storage';
 import RazorpayService from '../services/RazorpayService';
+import InvoiceService from '../services/InvoiceService';
+import { config } from '../config/environment';
+import User, { IUser } from '../models/User';
+import Transaction, { ITransaction } from '../models/Transaction';
+import logger from '../utils/logger';
 
 // Token packages available for purchase (aligned with frontend)
 export const TOKEN_PACKAGES = {
-  starter: { tokens: 1000, basePrice: 19.99, name: 'Starter Pack' },
-  professional: { tokens: 5000, basePrice: 79.99, name: 'Professional' },
-  enterprise: { tokens: 15000, basePrice: 199.99, name: 'Enterprise' },
-  unlimited: { tokens: 50000, basePrice: 499.99, name: 'Unlimited' }
+  '10': { tokens: 10, basePrice: 20, name: '10 Tokens' },
+  '50': { tokens: 50, basePrice: 100, name: '50 Tokens' },
+  '100': { tokens: 100, basePrice: 200, name: '100 Tokens' }
 };
 
 export class PaymentController {
@@ -63,21 +66,43 @@ export class PaymentController {
   static async createOrder(req: Request, res: Response) {
     try {
       const user = req.user as IUser;
-      const { packageId, billingCountry = 'US' } = req.body;
+      const { packageId, billingCountry = 'US', customTokens } = req.body;
 
-      // Validate package
-      const selectedPackage = TOKEN_PACKAGES[packageId as keyof typeof TOKEN_PACKAGES];
-      if (!selectedPackage) {
-        return res.status(400).json({ error: 'Invalid package selected' });
-      }
+      logger.info('PaymentController.createOrder called', {
+        userId: user._id,
+        packageId,
+        billingCountry,
+        customTokens
+      });
+
+      let tokens: number;
+      let basePrice: number;
+      let packageName: string;
 
       const country = String(billingCountry).toUpperCase();
       const currency = country === 'IN' ? 'INR' : 'USD';
-      
-      // Calculate pricing
-      let basePrice = selectedPackage.basePrice;
-      if (currency === 'INR') {
-        basePrice = selectedPackage.basePrice * 88; // Convert USD to INR
+
+      if (customTokens && parseInt(customTokens) > 0) {
+        // Handle custom token quantity
+        tokens = parseInt(customTokens);
+        basePrice = currency === 'INR' ? tokens * 176 : tokens * 2; // 1 token = $2 = ₹176
+        packageName = `${tokens} Tokens`;
+      } else {
+        // Validate package
+        const selectedPackage = TOKEN_PACKAGES[packageId as keyof typeof TOKEN_PACKAGES];
+        if (!selectedPackage) {
+          logger.warn('Invalid package selected', { packageId, userId: user._id });
+          return res.status(400).json({ error: 'Invalid package selected' });
+        }
+
+        tokens = selectedPackage.tokens;
+        basePrice = selectedPackage.basePrice;
+        packageName = selectedPackage.name;
+
+        // Convert USD to INR if needed
+        if (currency === 'INR') {
+          basePrice = selectedPackage.basePrice * 88; // Convert USD to INR
+        }
       }
 
       const taxInfo = RazorpayService.getTaxInfo(country);
@@ -86,23 +111,24 @@ export class PaymentController {
 
       // Create transaction record
       const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const transaction = new Transaction({
+
+      logger.info('Creating transaction', {
         userId: user._id,
         transactionId,
-        packageName: selectedPackage.name,
-        tokens: selectedPackage.tokens,
-        originalAmount: basePrice,
-        amount: finalPrice,
-        currency,
-        billingCountry: country,
-        taxApplied: taxInfo.applicable,
-        taxRate: taxInfo.rate,
-        taxAmount,
-        status: 'pending'
+        tokens,
+        finalPrice,
+        currency
       });
 
-      await transaction.save();
+      const transaction = await storage.createTransaction({
+        userId: user._id,
+        transactionId,
+        packageName,
+        tokens,
+        amount: finalPrice,
+        currency,
+        status: 'pending'
+      });
 
       // Create Razorpay order
       const razorpayOrder = await RazorpayService.createOrder({
@@ -113,18 +139,26 @@ export class PaymentController {
       });
 
       // Update transaction with Razorpay order ID
-      transaction.razorpayOrderId = razorpayOrder.id;
-      await transaction.save();
+      await storage.updateTransaction(transaction._id, {
+        razorpayOrderId: razorpayOrder.id
+      });
+
+      logger.info('Order created successfully', {
+        userId: user._id,
+        transactionId,
+        razorpayOrderId: razorpayOrder.id
+      });
 
       res.status(201).json({
         id: razorpayOrder.id,
         amount: Math.round(finalPrice * 100), // Amount in smallest currency unit for Razorpay
         currency,
         transactionId,
+        key: config.razorpayKeyId, // Add Razorpay key for frontend
         package: {
           id: packageId,
-          name: selectedPackage.name,
-          tokens: selectedPackage.tokens
+          name: packageName,
+          tokens
         },
         billing: {
           country,
@@ -135,9 +169,15 @@ export class PaymentController {
         }
       });
     } catch (error: any) {
-      console.error('Create order error:', error);
-      res.status(500).json({ 
-        error: error.message || 'Failed to create payment order' 
+      const user = req.user as IUser;
+      logger.error('PaymentController.createOrder error', {
+        error: error.message,
+        stack: error.stack,
+        userId: user?._id
+      });
+
+      res.status(500).json({
+        error: error.message || 'Failed to create payment order'
       });
     }
   }
@@ -146,6 +186,13 @@ export class PaymentController {
   static async verifyPayment(req: Request, res: Response) {
     try {
       const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+      const user = req.user as IUser;
+
+      logger.info('PaymentController.verifyPayment called', {
+        userId: user._id,
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id
+      });
 
       // Verify payment signature
       const isValidSignature = RazorpayService.verifyPaymentSignature(
@@ -155,40 +202,93 @@ export class PaymentController {
       );
 
       if (!isValidSignature) {
+        logger.warn('Invalid payment signature', {
+          userId: user._id,
+          razorpayOrderId: razorpay_order_id
+        });
         return res.status(400).json({ error: 'Invalid payment signature' });
       }
 
       // Find transaction by Razorpay order ID
-      const transaction = await Transaction.findOne({ razorpayOrderId: razorpay_order_id });
+      const transactions = await storage.getTransactions(user._id);
+      const transaction = transactions.find(t => t.razorpayOrderId === razorpay_order_id);
+
       if (!transaction) {
+        logger.warn('Transaction not found', {
+          userId: user._id,
+          razorpayOrderId: razorpay_order_id
+        });
         return res.status(404).json({ error: 'Transaction not found' });
       }
 
-      // Update transaction as completed
-      transaction.status = 'completed';
-      transaction.razorpayPaymentId = razorpay_payment_id;
-      transaction.razorpaySignature = razorpay_signature;
-      transaction.paymentMethod = 'razorpay';
-      await transaction.save();
+      logger.info('Updating transaction to completed', {
+        userId: user._id,
+        transactionId: transaction.transactionId,
+        tokens: transaction.tokens
+      });
 
-      // Add credits to user
-      await User.findByIdAndUpdate(
-        transaction.userId,
-        { $inc: { credits: transaction.credits } }
-      );
+      // Update transaction as completed
+      await storage.updateTransaction(transaction._id, {
+        status: 'completed',
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+        paymentMethod: 'razorpay'
+      });
+
+      // Add tokens to user
+      await storage.updateUser(user._id, {
+        tokens: user.tokens + transaction.tokens
+      });
+
+      logger.info('Tokens added to user', {
+        userId: user._id,
+        tokensAdded: transaction.tokens,
+        newBalance: user.tokens + transaction.tokens
+      });
+
+      // Generate invoice PDF
+      try {
+        const invoiceFileName = await InvoiceService.generateInvoice(transaction, user);
+        await storage.updateTransaction(transaction._id, {
+          invoiceFileName
+        });
+        logger.info('Invoice generated successfully', {
+          userId: user._id,
+          transactionId: transaction.transactionId,
+          invoiceFileName
+        });
+      } catch (invoiceError: any) {
+        logger.error('Invoice generation failed', {
+          error: invoiceError.message,
+          userId: user._id,
+          transactionId: transaction.transactionId
+        });
+        // Don't fail the payment if invoice generation fails
+      }
+
+      logger.info('Payment verification completed successfully', {
+        userId: user._id,
+        transactionId: transaction.transactionId
+      });
 
       res.json({
         success: true,
         message: 'Payment verified successfully',
         transaction: {
           id: transaction.transactionId,
-          credits: transaction.credits,
+          tokens: transaction.tokens,
           amount: transaction.amount,
           currency: transaction.currency
         }
       });
-    } catch (error) {
-      console.error('Verify payment error:', error);
+    } catch (error: any) {
+      const user = req.user as IUser;
+      logger.error('PaymentController.verifyPayment error', {
+        error: error.message,
+        stack: error.stack,
+        userId: user?._id
+      });
+
       res.status(500).json({ error: 'Failed to verify payment' });
     }
   }
@@ -237,9 +337,9 @@ export class PaymentController {
   // Handle payment captured webhook
   private static async handlePaymentCaptured(payment: any) {
     try {
-      const transaction = await Transaction.findOne({ 
-        razorpayOrderId: payment.order_id 
-      });
+      // Find transaction by Razorpay order ID using storage
+      const allTransactions = await storage.getTransactions(''); // Get all transactions (we'll filter)
+      const transaction = allTransactions.find(t => t.razorpayOrderId === payment.order_id);
 
       if (!transaction) {
         console.warn(`⚠️  Transaction not found for order: ${payment.order_id}`);
@@ -252,18 +352,21 @@ export class PaymentController {
       }
 
       // Update transaction
-      transaction.status = 'completed';
-      transaction.razorpayPaymentId = payment.id;
-      transaction.paymentMethod = payment.method;
-      await transaction.save();
+      await storage.updateTransaction(transaction._id, {
+        status: 'completed',
+        razorpayPaymentId: payment.id,
+        paymentMethod: payment.method
+      });
 
-      // Add credits to user
-      await User.findByIdAndUpdate(
-        transaction.userId,
-        { $inc: { credits: transaction.credits } }
-      );
+      // Add tokens to user
+      const user = await storage.getUser(transaction.userId.toString());
+      if (user) {
+        await storage.updateUser(user._id, {
+          tokens: user.tokens + transaction.tokens
+        });
+      }
 
-      console.log(`✅ Payment captured and credits added: ${transaction.transactionId}`);
+      console.log(`✅ Payment captured and tokens added: ${transaction.transactionId}`);
     } catch (error) {
       console.error('Handle payment captured error:', error);
     }
@@ -272,22 +375,68 @@ export class PaymentController {
   // Handle payment failed webhook
   private static async handlePaymentFailed(payment: any) {
     try {
-      const transaction = await Transaction.findOne({ 
-        razorpayOrderId: payment.order_id 
-      });
+      // Find transaction by Razorpay order ID using storage
+      const allTransactions = await storage.getTransactions(''); // Get all transactions (we'll filter)
+      const transaction = allTransactions.find(t => t.razorpayOrderId === payment.order_id);
 
       if (!transaction) {
         console.warn(`⚠️  Transaction not found for failed payment: ${payment.order_id}`);
         return;
       }
 
-      transaction.status = 'failed';
-      transaction.razorpayPaymentId = payment.id;
-      await transaction.save();
+      // Update transaction status to failed
+      await storage.updateTransaction(transaction._id, {
+        status: 'failed',
+        razorpayPaymentId: payment.id
+      });
 
       console.log(`❌ Payment failed: ${transaction.transactionId}`);
     } catch (error) {
       console.error('Handle payment failed error:', error);
+    }
+  }
+
+  // Download invoice PDF
+  static async downloadInvoice(req: Request, res: Response) {
+    try {
+      const user = req.user as IUser;
+      const { transactionId } = req.params;
+
+      // Find transaction
+      const transactions = await storage.getTransactions(user._id);
+      const transaction = transactions.find(t => t.transactionId === transactionId);
+
+      if (!transaction) {
+        return res.status(404).json({ error: 'Transaction not found' });
+      }
+
+      if (!transaction.invoiceFileName) {
+        return res.status(404).json({ error: 'Invoice not available' });
+      }
+
+      // Check if invoice file exists
+      if (!InvoiceService.invoiceExists(transaction.invoiceFileName)) {
+        return res.status(404).json({ error: 'Invoice file not found' });
+      }
+
+      const filePath = InvoiceService.getInvoicePath(transaction.invoiceFileName);
+
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${transaction.invoiceFileName}"`);
+
+      // Stream the file
+      const fs = require('fs');
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+
+      fileStream.on('error', (error: any) => {
+        console.error('File stream error:', error);
+        res.status(500).json({ error: 'Failed to download invoice' });
+      });
+    } catch (error) {
+      console.error('Download invoice error:', error);
+      res.status(500).json({ error: 'Failed to download invoice' });
     }
   }
 
@@ -297,24 +446,35 @@ export class PaymentController {
       const user = req.user as IUser;
       const { page = 1, limit = 10, status } = req.query;
 
-      const filter: any = { userId: user._id };
+      // Optimized query: filter by userId and status directly in database
+      const query: any = { userId: user._id };
       if (status) {
-        filter.status = status;
+        query.status = status;
       }
 
-      const transactions = await Transaction.find(filter)
-        .sort({ createdAt: -1 })
-        .limit(Number(limit))
-        .skip((Number(page) - 1) * Number(limit))
-        .select('-razorpaySignature -razorpayPaymentId'); // Hide sensitive info
+      // Get total count for pagination
+      const total = await storage.getTransactionCount(query);
 
-      const total = await Transaction.countDocuments(filter);
+      // Get paginated transactions
+      const transactions = await storage.getTransactionsPaginated(query, {
+        page: Number(page),
+        limit: Number(limit),
+        sort: { createdAt: -1 }
+      });
+
+      // Remove sensitive fields
+      const sanitizedTransactions = transactions.map(t => ({
+        ...t,
+        razorpaySignature: undefined,
+        razorpayPaymentId: undefined
+      }));
 
       res.json({
-        transactions,
+        transactions: sanitizedTransactions,
         total,
         page: Number(page),
-        totalPages: Math.ceil(total / Number(limit))
+        totalPages: Math.ceil(total / Number(limit)),
+        hasMore: Number(page) * Number(limit) < total
       });
     } catch (error) {
       console.error('Get transaction history error:', error);

@@ -60,4 +60,5 @@ const userSettingsSchema = new Schema<IUserSettings>({
   timestamps: true
 });
 
-export default mongoose.model<IUserSettings>('UserSettings', userSettingsSchema);
+const UserSettings = mongoose.models.UserSettings || mongoose.model<IUserSettings>('UserSettings', userSettingsSchema);
+export default UserSettings;

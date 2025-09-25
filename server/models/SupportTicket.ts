@@ -48,4 +48,5 @@ const supportTicketSchema = new Schema<ISupportTicket>({
 supportTicketSchema.index({ userId: 1, createdAt: -1 });
 supportTicketSchema.index({ status: 1 });
 
-export default mongoose.model<ISupportTicket>('SupportTicket', supportTicketSchema);
+const SupportTicket = mongoose.models.SupportTicket || mongoose.model<ISupportTicket>('SupportTicket', supportTicketSchema);
+export default SupportTicket;

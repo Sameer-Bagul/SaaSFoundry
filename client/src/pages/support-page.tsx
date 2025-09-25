@@ -12,9 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import Sidebar from "@/components/sidebar";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { insertSupportTicketSchema } from "@shared/schema";
+import { insertSupportTicketSchema, ISupportTicketType } from "@shared/schema";
 
 const supportTicketSchema = insertSupportTicketSchema.extend({
   userId: z.string().optional(),
@@ -22,12 +20,12 @@ const supportTicketSchema = insertSupportTicketSchema.extend({
 
 const faqs = [
   {
-    question: "How do AI credits work?",
-    answer: "AI credits are consumed each time you make an API call or use our AI services. Different operations consume different amounts of credits based on complexity and computational requirements. You can monitor your credit usage in your dashboard and purchase additional credits as needed."
+    question: "How do AI tokens work?",
+    answer: "AI tokens are consumed each time you make an API call or use our AI services. Different operations consume different amounts of tokens based on complexity and computational requirements. You can monitor your token usage in your dashboard and purchase additional tokens as needed."
   },
   {
     question: "Can I upgrade or downgrade my plan?",
-    answer: "Yes, you can change your credit package at any time. Simply visit the Buy Credits page and select your preferred package. There are no long-term commitments, and you can adjust your usage based on your needs."
+    answer: "Yes, you can change your token package at any time. Simply visit the Buy Tokens page and select your preferred package. There are no long-term commitments, and you can adjust your usage based on your needs."
   },
   {
     question: "What payment methods do you accept?",
@@ -49,8 +47,6 @@ const faqs = [
 
 export default function SupportPage() {
   const { toast } = useToast();
-  const isMobile = useIsMobile();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [openFaqs, setOpenFaqs] = useState<number[]>([]);
 
@@ -63,7 +59,7 @@ export default function SupportPage() {
     },
   });
 
-  const { data: tickets, isLoading: ticketsLoading } = useQuery({
+  const { data: tickets, isLoading: ticketsLoading } = useQuery<ISupportTicketType[]>({
     queryKey: ["/api/support/tickets"],
   });
 
@@ -107,27 +103,15 @@ export default function SupportPage() {
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-      
-      <div className="flex-1 lg:ml-64">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-background border-b border-border px-6 py-4">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-white/20 dark:border-slate-700/50 px-6 py-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-heading text-2xl font-bold">Help & Support</h1>
-              <p className="text-muted-foreground">Get help and find answers to common questions</p>
+              <h1 className="font-heading text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Help & Support</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Get help and find answers to common questions</p>
             </div>
-            {isMobile && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarOpen(true)}
-                data-testid="button-mobile-menu"
-              >
-                <span className="material-symbols-outlined">menu</span>
-              </Button>
-            )}
           </div>
         </div>
 
@@ -150,34 +134,34 @@ export default function SupportPage() {
           </div>
 
           {/* Quick Help Cards */}
-          <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <Card className="hover:border-primary transition-colors cursor-pointer" data-testid="card-getting-started">
-              <CardContent className="p-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <span className="material-symbols-outlined text-primary">help</span>
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
+            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-white/30 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl hover:scale-105 cursor-pointer group" data-testid="card-getting-started">
+              <CardContent className="p-8">
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors">
+                  <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">help</span>
                 </div>
-                <h3 className="font-heading text-lg font-semibold mb-2">Getting Started</h3>
-                <p className="text-muted-foreground text-sm">Learn the basics and set up your account</p>
+                <h3 className="font-heading text-xl font-semibold text-slate-800 dark:text-white mb-3">Getting Started</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-base">Learn the basics and set up your account</p>
               </CardContent>
             </Card>
 
-            <Card className="hover:border-primary transition-colors cursor-pointer" data-testid="card-api-docs">
-              <CardContent className="p-6">
-                <div className="w-12 h-12 bg-chart-2/10 rounded-lg flex items-center justify-center mb-4">
-                  <span className="material-symbols-outlined text-chart-2">code</span>
+            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-white/30 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl hover:scale-105 cursor-pointer group" data-testid="card-api-docs">
+              <CardContent className="p-8">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-green-200 dark:group-hover:bg-green-800/50 transition-colors">
+                  <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-2xl">code</span>
                 </div>
-                <h3 className="font-heading text-lg font-semibold mb-2">API Documentation</h3>
-                <p className="text-muted-foreground text-sm">Integrate our AI services into your applications</p>
+                <h3 className="font-heading text-xl font-semibold text-slate-800 dark:text-white mb-3">API Documentation</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-base">Integrate our AI services into your applications</p>
               </CardContent>
             </Card>
 
-            <Card className="hover:border-primary transition-colors cursor-pointer" data-testid="card-billing-help">
-              <CardContent className="p-6">
-                <div className="w-12 h-12 bg-chart-3/10 rounded-lg flex items-center justify-center mb-4">
-                  <span className="material-symbols-outlined text-chart-3">account_balance_wallet</span>
+            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-lg border-white/30 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl hover:scale-105 cursor-pointer group" data-testid="card-billing-help">
+              <CardContent className="p-8">
+                <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/50 transition-colors">
+                  <span className="material-symbols-outlined text-purple-600 dark:text-purple-400 text-2xl">account_balance_wallet</span>
                 </div>
-                <h3 className="font-heading text-lg font-semibold mb-2">Billing & Credits</h3>
-                <p className="text-muted-foreground text-sm">Understand pricing, billing, and credit usage</p>
+                <h3 className="font-heading text-xl font-semibold text-slate-800 dark:text-white mb-3">Billing & Credits</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-base">Understand pricing, billing, and credit usage</p>
               </CardContent>
             </Card>
           </div>

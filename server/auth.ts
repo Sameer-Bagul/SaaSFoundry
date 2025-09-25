@@ -1,93 +1,235 @@
-import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
-import session from "express-session";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
-import { storage } from "./storage";
-import { User as SelectUser } from "@shared/schema";
+import jwt from 'jsonwebtoken';
+import { Express, Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
+import cookieParser from 'cookie-parser';
+import { storage } from './storage';
+import { IUser as SelectUser } from '@shared/schema';
+import logger from './utils/logger';
 
 declare global {
   namespace Express {
-    interface User extends SelectUser {}
+    interface Request {
+      user?: SelectUser;
+    }
   }
 }
 
-const scryptAsync = promisify(scrypt);
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET!;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
 
 async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
+  const saltRounds = 12;
+  return await bcrypt.hash(password, saltRounds);
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  return await bcrypt.compare(supplied, stored);
+}
+
+export function generateAccessToken(user: SelectUser): string {
+  return jwt.sign(
+    { userId: user._id, username: user.username },
+    JWT_ACCESS_SECRET,
+    { expiresIn: '15m' }
+  );
+}
+
+export function generateRefreshToken(user: SelectUser): string {
+  return jwt.sign(
+    { userId: user._id, username: user.username },
+    JWT_REFRESH_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+
+export function verifyAccessToken(token: string): { userId: string; username: string } | null {
+  try {
+    const decoded = jwt.verify(token, JWT_ACCESS_SECRET) as any;
+    return { userId: decoded.userId, username: decoded.username };
+  } catch (error) {
+    logger.warn('Access token verification failed', { error: error instanceof Error ? error.message : String(error) });
+    return null;
+  }
+}
+
+export function verifyRefreshToken(token: string): { userId: string; username: string } | null {
+  try {
+    const decoded = jwt.verify(token, JWT_REFRESH_SECRET) as any;
+    return { userId: decoded.userId, username: decoded.username };
+  } catch (error) {
+    logger.warn('Refresh token verification failed', { error: error instanceof Error ? error.message : String(error) });
+    return null;
+  }
 }
 
 export function setupAuth(app: Express) {
-  const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET!,
-    resave: false,
-    saveUninitialized: false,
-    store: storage.sessionStore,
-  };
+  app.use(cookieParser());
 
-  app.set("trust proxy", 1);
-  app.use(session(sessionSettings));
-  app.use(passport.initialize());
-  app.use(passport.session());
+  // Register
+  app.post('/api/register', async (req: Request, res: Response) => {
+    logger.info('Registration attempt', { username: req.body.username, email: req.body.email });
+    try {
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser) {
+        logger.warn('Registration failed: Username already exists', { username: req.body.username });
+        return res.status(400).send('Username already exists');
+      }
 
-  passport.use(
-    new LocalStrategy(async (username, password, done) => {
+      const user = await storage.createUser({
+        ...req.body,
+        password: await hashPassword(req.body.password),
+      });
+
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
+
+      // Set refresh token in httpOnly cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      logger.info('Registration successful', { userId: user._id });
+      res.status(201).json({
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          country: user.country,
+          tokens: user.tokens,
+          isEmailVerified: user.isEmailVerified,
+        },
+        accessToken,
+      });
+    } catch (error) {
+      logger.error('Registration error', { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ error: 'Registration failed' });
+    }
+  });
+
+  // Login
+  app.post('/api/login', async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body;
       const user = await storage.getUserByUsername(username);
       if (!user || !(await comparePasswords(password, user.password))) {
-        return done(null, false);
-      } else {
-        return done(null, user);
+        logger.warn('Login failed: Invalid credentials', { username });
+        return res.status(401).json({ error: 'Invalid credentials' });
       }
-    }),
-  );
 
-  passport.serializeUser((user, done) => done(null, user.id));
-  passport.deserializeUser(async (id: string, done) => {
-    const user = await storage.getUser(id);
-    done(null, user);
-  });
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
 
-  app.post("/api/register", async (req, res, next) => {
-    const existingUser = await storage.getUserByUsername(req.body.username);
-    if (existingUser) {
-      return res.status(400).send("Username already exists");
+      // Set refresh token in httpOnly cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      logger.info('Login successful', { userId: user._id, username: user.username });
+      res.json({
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          country: user.country,
+          tokens: user.tokens,
+          isEmailVerified: user.isEmailVerified,
+        },
+        accessToken,
+      });
+    } catch (error) {
+      logger.error('Login error', { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ error: 'Login failed' });
     }
-
-    const user = await storage.createUser({
-      ...req.body,
-      password: await hashPassword(req.body.password),
-    });
-
-    req.login(user, (err) => {
-      if (err) return next(err);
-      res.status(201).json(user);
-    });
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+  // Refresh token
+  app.post('/api/refresh', async (req: Request, res: Response) => {
+    try {
+      const refreshToken = req.cookies.refreshToken;
+      if (!refreshToken) {
+        return res.status(401).json({ error: 'No refresh token' });
+      }
+
+      const decoded = verifyRefreshToken(refreshToken);
+      if (!decoded) {
+        return res.status(401).json({ error: 'Invalid refresh token' });
+      }
+
+      const user = await storage.getUser(decoded.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const newAccessToken = generateAccessToken(user);
+      const newRefreshToken = generateRefreshToken(user);
+
+      res.cookie('refreshToken', newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res.json({ accessToken: newAccessToken });
+    } catch (error) {
+      logger.error('Refresh token error', { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ error: 'Token refresh failed' });
+    }
   });
 
-  app.post("/api/logout", (req, res, next) => {
-    req.logout((err) => {
-      if (err) return next(err);
-      res.sendStatus(200);
-    });
+  // Logout
+  app.post('/api/logout', (req: Request, res: Response) => {
+    res.clearCookie('refreshToken');
+    res.json({ message: 'Logged out successfully' });
   });
 
-  app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(req.user);
+  // Get current user
+  app.get('/api/user', async (req: Request, res: Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No access token' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = verifyAccessToken(token);
+      if (!decoded) {
+        return res.status(401).json({ error: 'Invalid access token' });
+      }
+
+      const user = await storage.getUser(decoded.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      res.json({
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          country: user.country,
+          tokens: user.tokens,
+          isEmailVerified: user.isEmailVerified,
+        },
+      });
+    } catch (error) {
+      logger.error('Get user error', { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ error: 'Failed to get user' });
+    }
   });
 }
