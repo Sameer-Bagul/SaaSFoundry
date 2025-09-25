@@ -136,7 +136,7 @@ export default function AuthPage() {
 
                 {/* Social Auth Buttons */}
                 <div className="space-y-3 mb-6">
-                  <button className="w-full flex items-center justify-center px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] animate-in fade-in duration-500 delay-800">
+                  <button className="w-full flex items-center justify-center px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 transition-all hover:shadow-lg hover:scale-[1.02] animate-in fade-in duration-500 delay-800">
                     <span className="material-symbols-outlined mr-3 text-slate-600 dark:text-slate-400">google</span>
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Continue with Google</span>
                   </button>
